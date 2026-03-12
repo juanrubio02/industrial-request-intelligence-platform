@@ -1,0 +1,30 @@
+# Node
+node_modules/
+frontend/node_modules/
+.next/
+frontend/.next/
+
+# Python
+.venv/
+backend/.venv/
+_pycache_/
+*.pyc
+
+# Env files
+.env
+.env.local
+.env.test
+frontend/.env.local
+backend/.env
+backend/.env.test
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

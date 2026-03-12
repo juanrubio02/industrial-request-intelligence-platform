@@ -1,0 +1,40 @@
+Metadata-Version: 2.4
+Name: industrial-request-intelligence-platform-backend
+Version: 0.1.0
+Summary: Backend base for the Industrial Request Intelligence Platform
+Requires-Python: >=3.13
+Description-Content-Type: text/markdown
+Requires-Dist: alembic<2.0.0,>=1.14.0
+Requires-Dist: fastapi<1.0.0,>=0.115.0
+Requires-Dist: email-validator<3.0.0,>=2.2.0
+Requires-Dist: pydantic-settings<3.0.0,>=2.6.0
+Requires-Dist: python-multipart<1.0.0,>=0.0.9
+Requires-Dist: redis<6.0.0,>=5.2.0
+Requires-Dist: sqlalchemy<3.0.0,>=2.0.36
+Requires-Dist: asyncpg<1.0.0,>=0.30.0
+Requires-Dist: psycopg[binary]<4.0.0,>=3.2.0
+Requires-Dist: uvicorn[standard]<1.0.0,>=0.32.0
+Provides-Extra: dev
+Requires-Dist: aiosqlite<1.0.0,>=0.20.0; extra == "dev"
+Requires-Dist: httpx<1.0.0,>=0.28.0; extra == "dev"
+Requires-Dist: pytest<9.0.0,>=8.3.0; extra == "dev"
+
+# Industrial Request Intelligence Platform Backend
+
+Base backend scaffold with a modular architecture ready to grow into a SaaS industrial platform.
+
+## Run locally
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .[dev]
+uvicorn app.main:app --reload
+```
+
+## Run tests
+
+```bash
+pytest
+```
+

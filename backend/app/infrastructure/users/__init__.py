@@ -1,0 +1,2 @@
+"""User infrastructure package."""
+

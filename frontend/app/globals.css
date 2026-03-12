@@ -1,0 +1,125 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 32 33% 98%;
+  --foreground: 220 34% 14%;
+  --surface: 35 29% 96%;
+  --surface-muted: 216 28% 95%;
+  --line: 214 20% 86%;
+  --accent: 203 78% 42%;
+  --accent-foreground: 210 40% 98%;
+  --sidebar: 218 37% 12%;
+  --sidebar-foreground: 210 22% 92%;
+  --success: 151 61% 32%;
+  --warning: 36 90% 45%;
+  --danger: 353 72% 45%;
+  --radius-control: 1rem;
+  --radius-panel: 1.5rem;
+  --radius-pill: 999px;
+  --space-content: 1.5rem;
+  --space-section: 1.75rem;
+  --shadow-panel: 0 22px 44px -28px rgba(15, 23, 42, 0.22);
+  --shadow-soft: 0 10px 28px -24px rgba(15, 23, 42, 0.18);
+}
+
+* {
+  box-sizing: border-box;
+  border-color: hsl(var(--line));
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(34, 119, 182, 0.1), transparent 26%),
+    radial-gradient(circle at bottom right, rgba(225, 174, 77, 0.08), transparent 22%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(248, 247, 244, 0.96));
+  color: hsl(var(--foreground));
+  text-rendering: optimizeLegibility;
+}
+
+body,
+button,
+input,
+textarea,
+select {
+  font-family: var(--font-sans), "Inter", "Segoe UI", sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+code,
+pre {
+  font-family: var(--font-mono), "JetBrains Mono", "SFMono-Regular", monospace;
+}
+
+::selection {
+  background: rgba(18, 124, 206, 0.14);
+}
+
+.shell-grid {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: 288px minmax(0, 1fr);
+}
+
+.app-surface {
+  min-height: 100vh;
+  background-color: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(18px);
+}
+
+.content-frame {
+  margin: 0 auto;
+  width: 100%;
+  max-width: 1540px;
+  padding: var(--space-content);
+}
+
+.page-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-section);
+}
+
+.eyebrow {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgb(100 116 139);
+}
+
+.technical-block {
+  overflow: auto;
+  border-radius: calc(var(--radius-panel) - 0.25rem);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: linear-gradient(180deg, rgba(245, 247, 250, 0.9), rgba(241, 245, 249, 0.96));
+  padding: 1rem;
+  font-family: var(--font-mono), "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+  line-height: 1.7;
+  color: rgb(30 41 59);
+}
+
+.surface-muted {
+  background: linear-gradient(180deg, rgba(250, 250, 249, 0.95), rgba(246, 247, 248, 0.98));
+}
+
+.focus-ring {
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2;
+}
+
+@media (max-width: 1100px) {
+  .shell-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .content-frame {
+    padding: 1rem;
+  }
+}

@@ -1,0 +1,2 @@
+"""Request activity application package."""
+

@@ -1,0 +1,2 @@
+"""Request activity domain package."""
+
