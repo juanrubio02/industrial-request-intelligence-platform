@@ -2,9 +2,25 @@
 
 Backend service for the Industrial Request Intelligence Platform.
 
-The public project overview, demo flow and bootstrap instructions live in the root [`README.md`](../README.md).
+The official development workflow lives in the root [`README.md`](../README.md) and starts from [`scripts/dev-up.sh`](../scripts/dev-up.sh).
 
-## Local backend only
+## Official workflow
+
+```bash
+cd ..
+./scripts/dev-up.sh
+./scripts/dev-check.sh
+```
+
+That flow keeps the development ports fixed:
+
+- frontend: `3000`
+- backend: `8000`
+- postgres test: `55433`
+
+## Optional backend-only local run
+
+Use this only if you intentionally want to run FastAPI outside Docker and you already have PostgreSQL and Redis reachable on `localhost`.
 
 ```bash
 cd backend
@@ -14,7 +30,7 @@ pip install -e .[dev]
 cp .env.local.example .env
 alembic upgrade head
 python scripts/seed_demo.py
-uvicorn app.main:app --host 127.0.0.1 --port 28000 --reload
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 ## Tests

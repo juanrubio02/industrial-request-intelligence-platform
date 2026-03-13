@@ -68,7 +68,7 @@ class Settings(BaseSettings):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def cors_allowed_origins(self) -> list[str]:
+    def cors_allowed_origins_list(self) -> list[str]:
         return [
             origin.strip()
             for origin in self.app_cors_allowed_origins.split(",")

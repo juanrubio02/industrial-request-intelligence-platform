@@ -15,7 +15,7 @@ def create_app() -> FastAPI:
     )
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_allowed_origins,
+        allow_origins=settings.cors_allowed_origins_list,
         allow_credentials=True,
         # Allow PATCH/PUT/DELETE for API mutations (assignment, verified data, etc.)
         allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
