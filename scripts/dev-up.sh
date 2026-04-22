@@ -100,9 +100,9 @@ write_frontend_env
 echo "Starting backend, PostgreSQL and Redis..."
 
 if $REBUILD_IMAGES; then
-  $COMPOSE_CMD up -d --build postgres redis backend
+  BACKEND_PORT=$BACKEND_PORT $COMPOSE_CMD up -d --build postgres redis backend
 else
-  $COMPOSE_CMD up -d postgres redis backend
+  BACKEND_PORT=$BACKEND_PORT $COMPOSE_CMD up -d postgres redis backend
 fi
 
 wait_for_http "$BACKEND_URL/health" "Backend API" 90
