@@ -1,0 +1,10 @@
+./coinciencias.txt:7:./backend/README.md:3:Backend service for the ForgeFlow.
+./coinciencias.txt:92:./backend/.venv/lib/python3.13/site-packages/industrial_request_intelligence_platform_backend-0.1.0.dist-info/METADATA:4:Summary: Backend base for the ForgeFlow
+./coinciencias.txt:93:./backend/.venv/lib/python3.13/site-packages/industrial_request_intelligence_platform_backend-0.1.0.dist-info/METADATA:22:# ForgeFlow Backend
+./coinciencias.txt:104:./backend/pyproject.toml:8:description = "Backend base for the ForgeFlow"
+./coinciencias.txt:110:./.git/logs/refs/heads/main:1:0000000000000000000000000000000000000000 1100ed5cddbbfd41cae0465d9eb4d4f18a553e35 juanrubio02 <juanrrmuel@gmail.com> 1773336860 +0100	commit (initial): Initial clean commit for ForgeFlow
+./coinciencias.txt:111:./.git/logs/HEAD:22:0000000000000000000000000000000000000000 1100ed5cddbbfd41cae0465d9eb4d4f18a553e35 juanrubio02 <juanrrmuel@gmail.com> 1773336860 +0100	commit (initial): Initial clean commit for ForgeFlow
+./backend/README.md:3:Backend service for the ForgeFlow.
+./backend/.venv/lib/python3.13/site-packages/industrial_request_intelligence_platform_backend-0.1.0.dist-info/METADATA:4:Summary: Backend base for the ForgeFlow
+./backend/.venv/lib/python3.13/site-packages/industrial_request_intelligence_platform_backend-0.1.0.dist-info/METADATA:22:# ForgeFlow Backend
+./backend/pyproject.toml:8:description = "Backend base for the ForgeFlow"

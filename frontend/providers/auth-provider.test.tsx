@@ -63,8 +63,8 @@ describe("AuthProvider", () => {
       is_active: true,
       active_organization: {
         id: "org-1",
-        name: "Acme Industrial",
-        slug: "acme-industrial",
+        name: "Acme ForgeFlow",
+        slug: "acme-ForgeFlow",
       },
       active_membership: {
         id: "membership-1",
@@ -85,7 +85,7 @@ describe("AuthProvider", () => {
       expect(screen.getByText("ready")).toBeInTheDocument();
       expect(screen.getByText("authenticated")).toBeInTheDocument();
       expect(screen.getByText("alice@example.com")).toBeInTheDocument();
-      expect(screen.getByText("Acme Industrial")).toBeInTheDocument();
+      expect(screen.getByText("Acme ForgeFlow")).toBeInTheDocument();
       expect(screen.getByText("OWNER")).toBeInTheDocument();
       expect(screen.getByText("can-manage-members")).toBeInTheDocument();
     });
@@ -101,8 +101,8 @@ describe("AuthProvider", () => {
       is_active: true,
       active_organization: {
         id: "org-1",
-        name: "Acme Industrial",
-        slug: "acme-industrial",
+        name: "Acme ForgeFlow",
+        slug: "acme-ForgeFlow",
       },
       active_membership: {
         id: "membership-1",

@@ -24,8 +24,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Industrial Request Intelligence",
-  description: "Operational platform for industrial requests, document intelligence and demo-ready workflows.",
+  title: "ForgeFlow Request Intelligence",
+  description: "Operational platform for ForgeFlow requests, document intelligence and demo-ready workflows.",
 };
 
 export default function RootLayout({

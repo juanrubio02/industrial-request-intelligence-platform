@@ -42,8 +42,8 @@ export const en = {
   },
   login: {
     hero: {
-      eyebrow: "Industrial Request Intelligence",
-      title: "Operational platform for industrial requests.",
+      eyebrow: "ForgeFlow Request Intelligence",
+      title: "Operational platform for ForgeFlow requests.",
       description:
         "Run the full request lifecycle with authentication, organization-level isolation, document intelligence, OCR, summaries and structured extraction already wired to the backend.",
       highlights: [
@@ -162,7 +162,7 @@ export const en = {
       eyebrow: "Pipeline",
       title: "Requests",
       description:
-        "Live operational view of industrial requests already available in the backend.",
+        "Live operational view of ForgeFlow requests already available in the backend.",
       count: "{count} requests",
       create: "Create request",
     },
@@ -185,7 +185,7 @@ export const en = {
       emptyTitle: "No requests in this organization",
       emptyFilteredTitle: "No results for the active filters",
       emptyDescription:
-        "Requests will appear here as soon as the team starts registering industrial demand.",
+        "Requests will appear here as soon as the team starts registering ForgeFlow demand.",
       emptyFilteredDescription:
         "Try clearing the search or relaxing the filters to recover requests.",
       emptyAction: "Create request",
@@ -211,7 +211,7 @@ export const en = {
         "Same data, same filters and the same backend transitions, reorganized by stage so the whole flow is readable at a glance.",
       emptyColumn: "No requests in this stage.",
       emptyDescription:
-        "Requests will appear here as soon as the team starts registering industrial demand.",
+        "Requests will appear here as soon as the team starts registering ForgeFlow demand.",
       updatedLabel: "Updated",
       assigneeLabel: "Assignee:",
       documentsLabel: "Docs:",
@@ -231,11 +231,11 @@ export const en = {
       eyebrow: "Create",
       title: "New request",
       description:
-        "Capture a new industrial request and hand it into the operational flow.",
+        "Capture a new ForgeFlow request and hand it into the operational flow.",
     },
     form: {
       eyebrow: "Intake Registration",
-      title: "Create a new industrial request",
+      title: "Create a new ForgeFlow request",
       description:
         "This is the main entry point for commercial or operational demand coming from email, web forms or manual intake.",
       titleLabel: "Title",

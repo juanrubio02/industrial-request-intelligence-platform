@@ -42,8 +42,8 @@ export const es = {
   },
   login: {
     hero: {
-      eyebrow: "Industrial Request Intelligence",
-      title: "Plataforma operativa para solicitudes industriales.",
+      eyebrow: "ForgeFlow Request Intelligence",
+      title: "Plataforma operativa para solicitudes ForgeFlowes.",
       description:
         "Gestiona el ciclo completo de solicitudes con autenticación, aislamiento por organización, inteligencia documental, OCR, resúmenes y extracción estructurada conectados al backend.",
       highlights: [
@@ -162,7 +162,7 @@ export const es = {
       eyebrow: "Pipeline",
       title: "Solicitudes",
       description:
-        "Vista operativa en vivo de las solicitudes industriales disponibles en el backend.",
+        "Vista operativa en vivo de las solicitudes ForgeFlowes disponibles en el backend.",
       count: "{count} solicitudes",
       create: "Crear solicitud",
     },
@@ -185,7 +185,7 @@ export const es = {
       emptyTitle: "No hay solicitudes en esta organización",
       emptyFilteredTitle: "No hay resultados para los filtros aplicados",
       emptyDescription:
-        "Las solicitudes aparecerán aquí en cuanto el equipo empiece a registrar demanda industrial.",
+        "Las solicitudes aparecerán aquí en cuanto el equipo empiece a registrar demanda ForgeFlow.",
       emptyFilteredDescription:
         "Prueba a limpiar la búsqueda o relajar los filtros para recuperar solicitudes.",
       emptyAction: "Crear solicitud",
@@ -211,7 +211,7 @@ export const es = {
         "Misma data, mismos filtros y mismas transiciones del backend, organizada por fase para leer el flujo completo de un vistazo.",
       emptyColumn: "No hay solicitudes en esta fase.",
       emptyDescription:
-        "Las solicitudes aparecerán aquí en cuanto el equipo empiece a registrar demanda industrial.",
+        "Las solicitudes aparecerán aquí en cuanto el equipo empiece a registrar demanda ForgeFlow.",
       updatedLabel: "Actualizada",
       assigneeLabel: "Responsable:",
       documentsLabel: "Docs:",
@@ -231,11 +231,11 @@ export const es = {
       eyebrow: "Crear",
       title: "Nueva solicitud",
       description:
-        "Captura una nueva solicitud industrial y llévala al flujo operativo.",
+        "Captura una nueva solicitud ForgeFlow y llévala al flujo operativo.",
     },
     form: {
       eyebrow: "Registro de intake",
-      title: "Crear una nueva solicitud industrial",
+      title: "Crear una nueva solicitud ForgeFlow",
       description:
         "Este es el punto principal de entrada para demanda comercial u operativa proveniente de email, formularios web o captura manual.",
       titleLabel: "Título",

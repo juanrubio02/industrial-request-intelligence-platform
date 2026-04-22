@@ -1,6 +1,6 @@
 # Backend
 
-Backend service for the Industrial Request Intelligence Platform.
+Backend service for the ForgeFlow.
 
 The official development workflow lives in the root [`README.md`](../README.md) and starts from [`scripts/dev-up.sh`](../scripts/dev-up.sh).
 

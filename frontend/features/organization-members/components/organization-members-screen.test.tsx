@@ -111,8 +111,8 @@ describe("OrganizationMembersScreen", () => {
       },
       activeOrganization: {
         id: "org-1",
-        name: "Acme Industrial",
-        slug: "acme-industrial",
+        name: "Acme ForgeFlow",
+        slug: "acme-ForgeFlow",
       },
       canManageMembers: true,
       refreshMe: vi.fn().mockResolvedValue(undefined),
@@ -161,8 +161,8 @@ describe("OrganizationMembersScreen", () => {
       },
       activeOrganization: {
         id: "org-1",
-        name: "Acme Industrial",
-        slug: "acme-industrial",
+        name: "Acme ForgeFlow",
+        slug: "acme-ForgeFlow",
       },
       canManageMembers: true,
       refreshMe,
@@ -196,8 +196,8 @@ describe("OrganizationMembersScreen", () => {
       },
       activeOrganization: {
         id: "org-1",
-        name: "Acme Industrial",
-        slug: "acme-industrial",
+        name: "Acme ForgeFlow",
+        slug: "acme-ForgeFlow",
       },
       canManageMembers: false,
       refreshMe: vi.fn(),

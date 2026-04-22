@@ -5,7 +5,7 @@ import logging
 from contextvars import ContextVar, Token
 from typing import Any, Sequence
 
-LOGGER_NAME = "industrial_request_intelligence.http"
+LOGGER_NAME = "forgeflow_request_intelligence.http"
 
 _LOG_CONTEXT_VARS: dict[str, ContextVar[Any | None]] = {
     "request_id": ContextVar("request_id", default=None),

@@ -256,7 +256,7 @@ async def test_get_auth_memberships_returns_user_memberships(
     organization = await _create_organization(
         api_client,
         "Industrial Workspace",
-        "industrial-workspace",
+        "forgeflow-workspace",
     )
     await _create_membership(api_client, organization["id"], user["id"], role="OWNER")
     login_response = await api_client.post(
@@ -273,7 +273,7 @@ async def test_get_auth_memberships_returns_user_memberships(
     assert len(response.json()) == 1
     assert response.json()[0]["organization_id"] == organization["id"]
     assert response.json()[0]["organization_name"] == "Industrial Workspace"
-    assert response.json()[0]["organization_slug"] == "industrial-workspace"
+    assert response.json()[0]["organization_slug"] == "forgeflow-workspace"
     assert response.json()[0]["role"] == "OWNER"
     assert response.json()[0]["status"] == "ACTIVE"
 

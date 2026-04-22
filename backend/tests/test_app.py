@@ -7,7 +7,7 @@ from app.interfaces.http.app import create_app
 def test_create_app_returns_fastapi_instance() -> None:
     created_app = create_app()
 
-    assert created_app.title == "industrial-request-intelligence-platform"
+    assert created_app.title == "forgeflow-request-intelligence-platform"
 
 
 @pytest.mark.anyio

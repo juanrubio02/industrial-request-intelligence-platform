@@ -1,79 +1,92 @@
-# Industrial Request Intelligence Platform
+# ForgeFlow Business Request Management Platform
 
-Portfolio-ready demo of an industrial operations workspace for handling incoming commercial requests, attached documents and human-reviewed extracted data.
+Fullstack request operations system for managing ForgeFlow RFQs, attached documents, workflow status, ownership, comments, and reviewed document data.
 
-## What It Does
+## Key Highlights
 
-Industrial teams often receive RFQs, technical specs and purchase documents through fragmented channels. This project turns that intake into a structured operational flow:
+- End-to-end business request workflow: intake, assignment, status tracking, comments, timeline, document review, and verified data.
+- Built as a real product surface, not a generic CRM: the workflow is centered on ForgeFlow quoting and document-heavy commercial requests.
+- Document processing is visible inside the operator workflow: uploaded files are processed, summarized, classified, and reviewed before data is trusted.
+- Multi-tenant backend foundation with authenticated users, organization membership context, role-aware access, and tenant-scoped APIs.
+- Local demo runs without external SaaS dependencies using Docker Compose, seeded data, PostgreSQL, Redis, FastAPI, and Next.js.
 
-- authenticate into an organization-scoped workspace
-- create or simulate incoming requests
-- review request detail, comments, assignment and status progression
-- upload documents and inspect OCR / extraction output
-- verify structured data before it becomes trusted operational context
+## What the System Does
 
-The goal is not a generic CRM. It is a focused request-operations workflow for industrial quoting and document-heavy intake.
+ForgeFlow teams often receive RFQs, specifications, purchase documents, and follow-up details across fragmented channels. This platform turns that intake into a structured operational queue where each request has ownership, status, documents, comments, extracted information, and a review trail.
 
-## Why It Is Useful
+The result is a focused business request management system for teams that need to move document-heavy opportunities from incoming demand to reviewed operational context.
 
-- centralizes scattered incoming demand into one operational queue
-- makes document intelligence visible inside the workflow instead of hiding it in back-office tooling
-- keeps comments, ownership, timeline and verified data tied to the same request
-- provides a demoable end-to-end story without external SaaS dependencies
+## Core Features
 
-## Stack
-
-- Frontend: Next.js 14, React 18, TypeScript, Tailwind CSS, TanStack Query, Vitest
-- Backend: FastAPI, SQLAlchemy, Alembic, PostgreSQL, Redis, pytest
-- Document pipeline: local document storage, OCR fallback, simple summarization / structured extraction pipeline
-- Local orchestration: Docker Compose + bootstrap script
+- Organization-scoped workspace with demo authentication
+- Request list and request detail views
+- Request creation through guided demo intake scenarios
+- Status progression for ForgeFlow request workflows
+- Assignment and internal collaboration comments
+- Activity timeline tied to each request
+- Document upload and processing status tracking
+- Text extraction, document type detection, and summary generation
+- Human-reviewed structured fields before data is treated as verified
+- Demo seed data and realistic RFQ scenarios for evaluation
 
 ## Architecture
 
-The repository is split into two applications:
-
-- `frontend/`: recruiter-friendly product UI with login, request list/detail, document detail and demo intake
-- `backend/`: modular FastAPI service with application/domain/infrastructure layers, tenant-safe request/document APIs and demo seed data
+```text
+frontend/   Next.js product UI for login, request operations, document review, and demo intake
+backend/    FastAPI service with domain, application, infrastructure, and HTTP layers
+scripts/    Local development helpers for startup, checks, logs, and shutdown
+```
 
 High-level flow:
 
-1. user authenticates and selects an active organization access
-2. requests are created manually or through demo intake scenarios
-3. documents are attached to requests and stored locally
-4. processing extracts text, document type, summary and structured fields
-5. an operator reviews the request, comments, assignment and verified document data
+1. A user signs in and works inside an organization membership context.
+2. Requests are created manually or generated through demo intake scenarios.
+3. Documents are attached to requests and stored locally.
+4. The backend processes documents for text, type, summary, and structured fields.
+5. An operator reviews request status, ownership, comments, timeline, and verified document data.
 
-Backend boundaries follow clean architecture:
+Backend boundaries:
 
-- `domain/`: pure entities, enums and business rules
-- `application/`: use cases, commands, read models and authorization policies
-- `infrastructure/`: SQLAlchemy repositories, JWT, storage and processing adapters
-- `interfaces/http/`: FastAPI routes, middleware, dependency injection and API schemas
+- `domain`: core entities, enums, and business rules
+- `application`: use cases, commands, read models, and authorization policies
+- `infrastructure`: database repositories, JWT, storage, and document processing adapters
+- `interfaces/http`: FastAPI routes, middleware, dependency injection, and API schemas
 
-## Main Features
+## Tech Stack
 
-- authentication and organization-scoped access context
-- JWT access + refresh token flow with HTTP-only cookies and Bearer support
-- RBAC with `OWNER`, `ADMIN` and `MEMBER`
-- industrial request pipeline with status transitions
-- request assignment and internal comments
-- request activity timeline
-- document upload and processing status tracking
-- extracted text, summary and detected document type
-- human-verified structured document fields
-- demo intake scenarios that generate realistic sample requests
+**Frontend**
 
-## Repository Layout
+- Next.js 14
+- React 18
+- TypeScript
+- Tailwind CSS
+- TanStack Query
+- Vitest
 
-```text
-backend/   FastAPI app, migrations, tests, demo seed and demo scenarios
-frontend/  Next.js app, UI components, tests and i18n dictionaries
-scripts/   Local bootstrap helpers
-```
+**Backend**
 
-## Quick Start
+- FastAPI
+- SQLAlchemy
+- Alembic
+- PostgreSQL
+- Redis
+- pytest
 
-### Official development flow
+**Document Processing**
+
+- Local file storage
+- PDF parsing
+- OCR fallback
+- Deterministic text summary and structured field extraction
+- Human verification workflow
+
+**Local Development**
+
+- Docker Compose
+- Seed scripts
+- Health and flow check scripts
+
+## Demo / How to Run
 
 Requirements:
 
@@ -81,222 +94,63 @@ Requirements:
 - Node.js 20+ with `npm`
 - Python 3 available in `PATH`
 
-From the repo root:
+Start the full application:
 
 ```bash
-cd /path/to/industrial-request-intelligence-platform
 ./scripts/dev-up.sh
 ./scripts/dev-check.sh
 ```
 
-Open:
+Open the frontend:
 
-- `http://localhost:3000/login`
+```text
+http://localhost:3000/login
+```
 
 Demo credentials:
 
-- Email: `admin@acme.com`
-- Password: `Admin1234`
-
-What `./scripts/dev-up.sh` does:
-
-- writes `frontend/.env.local` with `NEXT_PUBLIC_API_BASE_URL=http://localhost:8000`
-- starts PostgreSQL, Redis and the FastAPI backend with Docker Compose
-- runs Alembic migrations on startup
-- seeds the demo organization, owner membership and demo user
-- starts the Next.js frontend on port `3000`
-- mounts backend source code into the container and uses live reload for normal backend code changes
-
-## API Surface
-
-All backend routes are versioned under:
-
 ```text
-/api/v1
+Email: admin@acme.com
+Password: Admin1234
 ```
 
-### Bootstrap endpoints
+Useful commands:
 
-Bootstrap endpoints exist only to create the initial tenant and operator context in local/demo environments. They require `X-Bootstrap-Key`.
-
-- `POST /api/v1/bootstrap/users`
-- `POST /api/v1/bootstrap/organizations`
-- `POST /api/v1/bootstrap/organizations/{organization_id}/memberships`
-
-These endpoints are intentionally separated from the protected application surface so user, organization and membership creation are not publicly exposed.
-
-### Protected endpoints
-
-All operational endpoints require authentication, and tenant-scoped endpoints also require an active membership context.
-
-Examples:
-
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/refresh`
-- `GET /api/v1/auth/me`
-- `GET /api/v1/auth/memberships`
-- `GET /api/v1/requests`
-- `POST /api/v1/requests`
-- `POST /api/v1/requests/{request_id}/documents/upload`
-- `POST /api/v1/documents/{document_id}/processing-jobs`
-
-### Authentication flow
-
-1. Log in through `POST /api/v1/auth/login`.
-2. The backend returns the JWT `access_token` in the response body and stores both access and refresh tokens in HTTP-only cookies.
-3. The refresh token is rotated server-side and is not exposed in the JSON payload.
-4. Use `Authorization: Bearer <access_token>` for API clients when needed.
-5. Refresh the session through `POST /api/v1/auth/refresh`.
-
-### Tenant context and required headers
-
-This is a multi-tenant SaaS backend. Authentication identifies the user, but the active workspace is selected through membership context.
-
-- `Authorization: Bearer <access_token>`: required for protected API access when not relying on cookies
-- `X-Membership-Id: <membership_uuid>`: required for organization-scoped operations
-- `X-Bootstrap-Key: <bootstrap_key>`: required only for bootstrap endpoints
-
-Error semantics:
-
-- `401 Unauthorized`: no valid access token or no valid membership context
-- `403 Forbidden`: authenticated, but the active membership does not have permission for the action
-
-### RBAC
-
-- `OWNER`: full tenant administration, including sensitive membership changes
-- `ADMIN`: operational administration inside the tenant
-- `MEMBER`: standard workspace access with restricted mutation capabilities
-
-### Pagination
-
-List endpoints return:
-
-```json
-{
-  "items": [],
-  "total": 0,
-  "limit": 20,
-  "offset": 0
-}
+```bash
+./scripts/dev-up.sh --rebuild
+./scripts/dev-down.sh
+./scripts/dev-logs.sh
+./scripts/dev-check.sh --deep
 ```
 
-Default `limit` is `20` and maximum `limit` is `100`.
-
-### Official development ports
+Default local ports:
 
 - Frontend: `3000`
 - Backend API: `8000`
 - Test PostgreSQL: `55433`
-- PostgreSQL container (internal): `5432`
-- Redis container (internal): `6379`
+- PostgreSQL container: `5432`
+- Redis container: `6379`
 
-### Official development commands
+## Suggested Demo Flow
 
-Start everything:
-
-```bash
-./scripts/dev-up.sh
-./scripts/dev-up.sh --rebuild
-```
-
-Stop everything:
-
-```bash
-./scripts/dev-down.sh
-```
-
-Health and flow checks:
-
-```bash
-./scripts/dev-check.sh
-./scripts/dev-check.sh --deep
-```
-
-Logs:
-
-```bash
-./scripts/dev-logs.sh
-```
-
-### Optional backend-only local work
-
-The official workflow is `./scripts/dev-up.sh`. If you need to run the backend outside Docker, use `backend/.env.local.example` as a starting point and make sure PostgreSQL and Redis are already available on `localhost`.
-
-```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .[dev]
-cp .env.local.example .env
-alembic upgrade head
-python scripts/seed_demo.py
-uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-```
-
-## Environment Files
-
-- `backend/.env.example`: Docker-friendly backend defaults
-- `backend/.env.local.example`: optional local backend defaults on port `8000`
-- `backend/.env.test.example`: optional overrides for test database/auth settings
-- `frontend/.env.example`: frontend API base URL template
-- `frontend/.env.local`: generated by `./scripts/dev-up.sh` and points to `http://localhost:8000`
-
-No production secrets are required for local demo execution.
-
-## Troubleshooting
-
-Port `3000` or `8000` is already occupied:
-
-```bash
-./scripts/dev-down.sh
-./scripts/dev-check.sh
-```
-
-If another process still owns the port, stop it before running `./scripts/dev-up.sh` again.
-
-Backend does not come up:
-
-```bash
-./scripts/dev-logs.sh
-docker compose ps
-curl http://localhost:8000/api/v1/health
-```
-
-Frontend points to the wrong API URL:
-
-```bash
-cat frontend/.env.local
-```
-
-The only supported development API base URL is `http://localhost:8000`.
-
-CORS errors in development:
-
-- the backend allows both `http://localhost:3000` and `http://127.0.0.1:3000`
-- rerun `./scripts/dev-up.sh` if you changed env files manually
-
-Docker is serving stale backend code:
-
-```bash
-./scripts/dev-up.sh --rebuild
-```
-
-The compose setup mounts the backend source for live reload. Use `--rebuild` only for dependency or Docker image changes.
-
-## Recommended Demo Flow
-
-For a 3-5 minute demo:
-
-1. Login with the seeded demo account.
-2. Open `Guided demo` / `Demo guiada`.
-3. Run `RFQ - Stainless Steel Mounting Brackets`.
-4. Show the generated request detail.
-5. Highlight assignment, internal comments and timeline.
+1. Log in with the seeded demo account.
+2. Open the guided demo.
+3. Run the `RFQ - Stainless Steel Mounting Brackets` scenario.
+4. Review the generated request detail page.
+5. Show assignment, comments, timeline, and status.
 6. Open the attached document.
-7. Show extracted text, summary, detected type and verified data.
-8. Return to the request list and filter by status or assignee.
+7. Review extracted text, summary, document type, and verified fields.
 
-## Validation Commands
+## Screenshots
+
+Screenshots can be added here for:
+
+- Request queue
+- Request detail
+- Document processing result
+- Verified structured data
+
+## Validation
 
 Frontend:
 
@@ -315,22 +169,9 @@ source .venv/bin/activate
 pytest
 ```
 
-## Current Limitations
+## Current Scope
 
-- document intelligence is local and deterministic enough for demo purposes, not production-scale AI orchestration
-- file storage is local filesystem storage
-- there is no audit/export layer beyond the in-product timeline
-- no background worker deployment setup is included beyond local/demo needs
-
-## Short Roadmap
-
-- richer verified-data schemas per document type
-- external object storage and async worker deployment
-- analytics around request throughput and bottlenecks
-- audit trail export / compliance reporting
-
-## Public Release Notes
-
-- demo credentials are intentionally seeded and documented for local evaluation
-- `.env`, test env files, caches and local build artifacts are ignored and should not be committed
-- staging/production startup now rejects the placeholder auth secret
+- Authentication is demo-grade and designed for local evaluation.
+- File storage is local filesystem storage.
+- Document processing is deterministic and local, suitable for portfolio demonstration.
+- Background worker deployment and production object storage are outside the current scope.

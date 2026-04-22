@@ -16,7 +16,7 @@ async def test_healthcheck_endpoint_returns_ok_status() -> None:
     assert response.json() == {
         "data": {
             "status": "ok",
-            "service": "industrial-request-intelligence-platform",
+            "service": "forgeflow-request-intelligence-platform",
             "environment": "local",
         }
     }

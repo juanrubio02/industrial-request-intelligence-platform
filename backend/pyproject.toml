@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "industrial-request-intelligence-platform-backend"
+name = "forgeflow-request-intelligence-platform-backend"
 version = "0.1.0"
-description = "Backend base for the Industrial Request Intelligence Platform"
+description = "Backend base for the ForgeFlow"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

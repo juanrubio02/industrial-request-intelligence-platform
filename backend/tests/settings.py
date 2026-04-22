@@ -12,7 +12,7 @@ class TestSettings(BaseSettings):
     )
 
     test_database_url: str = Field(
-        default="postgresql+asyncpg://postgres:postgres@127.0.0.1:55433/industrial_requests_test",
+        default="postgresql+asyncpg://postgres:postgres@127.0.0.1:55433/forgeflow_requests_test",
         alias="TEST_DATABASE_URL",
     )
     auth_secret_key: str = Field(default="test-auth-secret", alias="AUTH_SECRET_KEY")

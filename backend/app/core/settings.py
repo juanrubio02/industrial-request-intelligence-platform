@@ -12,7 +12,7 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    app_name: str = Field(default="industrial-request-intelligence-platform", alias="APP_NAME")
+    app_name: str = Field(default="forgeflow-request-intelligence-platform", alias="APP_NAME")
     app_env: str = Field(default="local", alias="APP_ENV")
     app_host: str = Field(default="0.0.0.0", alias="APP_HOST")
     app_port: int = Field(default=8000, alias="APP_PORT")
@@ -62,7 +62,7 @@ class Settings(BaseSettings):
 
     postgres_host: str = Field(default="localhost", alias="POSTGRES_HOST")
     postgres_port: int = Field(default=5432, alias="POSTGRES_PORT")
-    postgres_db: str = Field(default="industrial_requests", alias="POSTGRES_DB")
+    postgres_db: str = Field(default="forgeflow_requests", alias="POSTGRES_DB")
     postgres_user: str = Field(default="postgres", alias="POSTGRES_USER")
     postgres_password: str = Field(default="postgres", alias="POSTGRES_PASSWORD")
 
