@@ -97,8 +97,7 @@ echo "Detecting backend port assigned by Docker..."
 
 CONTAINER_NAME=$($COMPOSE_CMD ps -q backend)
 
-BACKEND_PORT_REAL=$(docker port "$CONTAINER_NAME" 8000 | sed 's/.*://')
-
+BACKEND_PORT_REAL=$(docker port "$CONTAINER_NAME" 8000 | head -n1 | awk -F: '{print $2}')
 BACKEND_PUBLIC_URL="http://localhost:$BACKEND_PORT_REAL"
 BACKEND_URL="$BACKEND_PUBLIC_URL"
 
