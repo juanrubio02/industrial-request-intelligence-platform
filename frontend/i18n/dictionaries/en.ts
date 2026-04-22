@@ -14,6 +14,7 @@ export const en = {
         requests: "Requests",
         newRequest: "New Request",
         demoIntake: "Guided demo",
+        settingsUsers: "Team",
       },
       intelligence: {
         eyebrow: "Document Intelligence",
@@ -72,45 +73,57 @@ export const en = {
   },
   dashboard: {
     header: {
-      eyebrow: "Operational Overview",
-      title: "Document-led request operations",
+      eyebrow: "Pipeline intelligence",
+      title: "Operational pipeline intelligence",
       description:
-        "Track commercial flow, inspect recent request activity and monitor document intelligence readiness from a single operational console.",
+        "Understand how the pipeline moves, detect bottlenecks and measure conversion, velocity and average stage duration from real backend data.",
     },
-    stats: {
-      totalRequests: "Total Requests",
-      totalRequestsHelper: "Tenant-scoped pipeline.",
-      openPipeline: "Open Pipeline",
-      openPipelineHelper: "Requests still in progress.",
-      systemHealth: "System Health",
-      systemHealthHelperLoading: "Loading backend status.",
-      recentSignals: "Recent Signals",
-      recentSignalsHelper: "Latest requests surfaced for operators.",
-      checking: "CHECKING",
+    loadError:
+      "Pipeline intelligence could not be loaded. Verify the API and try again.",
+    empty: {
+      title: "There are not enough requests yet to analyze the pipeline",
+      description:
+        "As soon as the team starts registering requests, this dashboard will surface conversion, bottlenecks and average time by stage.",
+      action: "Create request",
     },
-    recentRequests: {
-      eyebrow: "Recent Requests",
-      title: "Live commercial intake",
-      action: "Open full list",
-      empty:
-        "No requests yet for this organization. Create the first one to start the operational flow.",
+    kpis: {
+      totalRequests: "Total requests",
+      totalRequestsHelper: "Full volume tracked for the active organization.",
+      conversionRate: "Conversion rate",
+      conversionRateHelper: "Won requests over the total pipeline volume.",
+      lossRate: "Loss rate",
+      lossRateHelper: "Lost requests over the registered total.",
+      pipelineVelocity: "Pipeline velocity",
+      pipelineVelocityHelper: "Average time from new request to won.",
     },
-    systemState: {
-      eyebrow: "System State",
-      title: "Backend intelligence services",
-      apiAvailable: "API available",
-      apiDescription: "Health endpoint returns {status}.",
-      intelligenceOnline: "Request intelligence online",
-      intelligenceDescription:
-        "OCR, summaries and structured fields are exposed at document level.",
-      pending: "pending",
+    funnel: {
+      eyebrow: "Funnel",
+      title: "Pipeline funnel",
+      description:
+        "Current stage distribution to understand flow progression and commercial narrowing.",
+      count: "{count} items",
     },
-    nextStep: {
-      eyebrow: "Operator Flow",
-      title: "Recommended next step",
-      actionTitle: "Register a new request",
-      actionDescription:
-        "Create a new industrial intake and attach documents immediately.",
+    stageDuration: {
+      eyebrow: "Stage duration",
+      title: "Average time per stage",
+      description:
+        "Average days a request spends in each state before advancing or closing.",
+    },
+    bottlenecks: {
+      eyebrow: "Bottlenecks",
+      title: "Operational friction alerts",
+      description:
+        "Stages whose average duration exceeds the configured pipeline threshold.",
+      stageExceeded: "Average time detected in this stage:",
+      healthyTitle: "No bottlenecks detected",
+      healthyDescription:
+        "No stage is currently above the configured threshold. The pipeline is moving within the expected range.",
+      ctaTitle: "Open operational pipeline",
+      ctaDescription:
+        "Review active requests and act directly from the requests workspace.",
+    },
+    common: {
+      daysShort: "d",
     },
   },
   demoIntake: {
@@ -187,6 +200,32 @@ export const en = {
       allSources: "All sources",
       allAssignees: "All assignees",
       reset: "Reset filters",
+    },
+    views: {
+      list: "List view",
+      pipeline: "Pipeline view",
+    },
+    pipeline: {
+      eyebrow: "Visual pipeline",
+      description:
+        "Same data, same filters and the same backend transitions, reorganized by stage so the whole flow is readable at a glance.",
+      emptyColumn: "No requests in this stage.",
+      emptyDescription:
+        "Requests will appear here as soon as the team starts registering industrial demand.",
+      updatedLabel: "Updated",
+      assigneeLabel: "Assignee:",
+      documentsLabel: "Docs:",
+      commentsLabel: "Comments:",
+      open: "Open",
+      moveLabel: "Move request",
+      movePlaceholder: "Move to...",
+      moveAction: "Move",
+      metrics: {
+        total: "Total",
+        open: "In progress",
+        won: "{count} won",
+        lost: "{count} lost",
+      },
     },
     new: {
       eyebrow: "Create",
@@ -306,6 +345,53 @@ export const en = {
       NOTE_ADDED: "Note added",
     },
   },
+  organizationMembers: {
+    header: {
+      eyebrow: "Internal governance",
+      title: "Members and access",
+      description:
+        "Manage the active organization team, adjust baseline roles and activate or disable internal access directly from the workspace.",
+      activeRoleLabel: "Active role:",
+    },
+    loadError:
+      "The active organization team could not be loaded. Verify permissions and try again.",
+    empty: {
+      title: "There are no members in this organization yet",
+      description:
+        "As soon as internal access is assigned, the team will appear here so role, status and join date can be reviewed.",
+    },
+    noPermission: {
+      title: "You do not have permission to manage members",
+      description:
+        "This workspace is reserved for OWNER and ADMIN roles in the active organization. If you need to manage access, request elevated permissions from an account owner.",
+    },
+    table: {
+      columns: {
+        member: "Member",
+        role: "Role",
+        status: "Status",
+        joinedAt: "Joined",
+        actions: "Actions",
+      },
+      roleSelectLabel: "Change member role",
+      statusSelectLabel: "Change member status",
+      currentUser: "Your access",
+      memberManagedInline: "Managed inline",
+    },
+    statuses: {
+      ACTIVE: "Active",
+      DISABLED: "Disabled",
+    },
+    toasts: {
+      roleUpdatedTitle: "Role updated",
+      roleUpdatedDescription: "The member role is now updated.",
+      roleErrorTitle: "Could not update the role",
+      statusUpdatedTitle: "Status updated",
+      statusUpdatedDescription: "The member status is now updated.",
+      statusErrorTitle: "Could not update the status",
+      fallbackError: "The member change could not be saved.",
+    },
+  },
   documents: {
     panel: {
       eyebrow: "Attached Documents",
@@ -412,7 +498,9 @@ export const en = {
     memberships: {
       OWNER: "Owner",
       ADMIN: "Admin",
+      MANAGER: "Manager",
       MEMBER: "Member",
+      VIEWER: "Viewer",
     },
   },
 } as const;

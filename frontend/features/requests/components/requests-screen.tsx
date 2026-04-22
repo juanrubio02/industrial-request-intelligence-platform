@@ -10,6 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useRequestsQuery } from "@/features/requests/api";
 import { RequestFiltersBar, type RequestListFilterState } from "@/features/requests/components/request-filters-bar";
 import { RequestListTable } from "@/features/requests/components/request-list-table";
+import { RequestViewToggle, type RequestViewMode } from "@/features/requests/components/request-view-toggle";
+import { RequestsPipelineScreen } from "@/features/requests/components/requests-pipeline-screen";
 import { useQuery } from "@tanstack/react-query";
 import { getOrganizationMembershipOptions } from "@/lib/api/auth";
 import { useMembership } from "@/hooks/use-membership";
@@ -26,6 +28,7 @@ export function RequestsScreen() {
   const { messages } = useI18n();
   const { activeMembership } = useMembership();
   const [filters, setFilters] = useState<RequestListFilterState>(DEFAULT_FILTERS);
+  const [view, setView] = useState<RequestViewMode>("list");
   const deferredSearch = useDeferredValue(filters.q);
   const appliedFilters = useMemo(
     () => ({
@@ -81,6 +84,15 @@ export function RequestsScreen() {
         onReset={() => setFilters(DEFAULT_FILTERS)}
       />
 
+      <div className="flex justify-end">
+        <RequestViewToggle
+          value={view}
+          onChange={setView}
+          listLabel={messages.requests.views.list}
+          pipelineLabel={messages.requests.views.pipeline}
+        />
+      </div>
+
       {requestsQuery.isLoading ? (
         <div className="space-y-4">
           <Skeleton className="h-16 w-full" />
@@ -93,12 +105,21 @@ export function RequestsScreen() {
           </CardContent>
         </Card>
       ) : (
-        <RequestListTable
-          requests={requestsQuery.data ?? []}
-          hasActiveFilters={hasActiveFilters}
-        />
+        <>
+          {view === "list" ? (
+            <RequestListTable
+              requests={requestsQuery.data ?? []}
+              hasActiveFilters={hasActiveFilters}
+            />
+          ) : (
+            <RequestsPipelineScreen
+              requests={requestsQuery.data ?? []}
+              memberships={membershipsQuery.data ?? []}
+              hasActiveFilters={hasActiveFilters}
+            />
+          )}
+        </>
       )}
     </div>
   );
 }
-

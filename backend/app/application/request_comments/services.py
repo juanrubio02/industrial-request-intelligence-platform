@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
+from app.application.common.pagination import PaginatedResult, PaginationParams
 from app.application.request_comments.commands import CreateRequestCommentCommand
 from app.application.request_comments.schemas import RequestCommentReadModel
 from app.application.requests.exceptions import RequestNotFoundError
@@ -74,14 +75,28 @@ class ListRequestCommentsUseCase:
         self,
         request_id: UUID,
         organization_id: UUID,
-    ) -> list[RequestCommentReadModel]:
+        pagination: PaginationParams,
+    ) -> PaginatedResult[RequestCommentReadModel]:
         request = await self._request_repository.get_by_id(request_id)
         if request is None or request.organization_id != organization_id:
             raise RequestNotFoundError(f"Request '{request_id}' was not found.")
 
-        comments = await self._request_comment_repository.list_by_request_id(request_id)
-        return [
-            RequestCommentReadModel.model_validate(comment, from_attributes=True)
-            for comment in comments
-        ]
-
+        comments = await self._request_comment_repository.list_by_request_id(
+            request_id,
+            organization_id=organization_id,
+            limit=pagination.limit,
+            offset=pagination.offset,
+        )
+        total = await self._request_comment_repository.count_by_request_id(
+            request_id,
+            organization_id=organization_id,
+        )
+        return PaginatedResult(
+            items=[
+                RequestCommentReadModel.model_validate(comment, from_attributes=True)
+                for comment in comments
+            ],
+            total=total,
+            limit=pagination.limit,
+            offset=pagination.offset,
+        )

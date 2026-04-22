@@ -1,219 +1,250 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.auth.authorization import MembershipPermission
 from app.application.auth.schemas import AuthenticatedMembershipReadModel
 from app.application.request_activities.schemas import RequestActivityReadModel
 from app.application.request_comments.commands import CreateRequestCommentCommand
 from app.application.request_comments.schemas import RequestCommentReadModel
-from app.application.requests.commands import AssignRequestCommand
-from app.application.requests.commands import CreateRequestCommand
-from app.application.requests.commands import ListRequestsFilters
-from app.application.requests.commands import TransitionRequestStatusCommand
+from app.application.requests.commands import (
+    AssignRequestCommand,
+    CreateRequestCommand,
+    ListRequestsFilters,
+    TransitionRequestStatusCommand,
+    UpdateRequestCommand,
+)
+from app.application.requests.schemas import RequestReadModel
 from app.domain.requests.sources import RequestSource
 from app.domain.requests.statuses import RequestStatus
-from app.application.requests.schemas import RequestReadModel
-from app.application.requests.services import (
-    AssignRequestUseCase,
-    CreateRequestUseCase,
-    GetRequestByIdUseCase,
-    ListRequestsUseCase,
-    ListRequestActivitiesUseCase,
-    TransitionRequestStatusUseCase,
+from app.interfaces.http.dependencies import (
+    get_service_factory,
+    require_membership_permission,
 )
-from app.application.request_comments.services import (
-    CreateRequestCommentUseCase,
-    ListRequestCommentsUseCase,
-)
-from app.infrastructure.database.session import get_db_session
-from app.infrastructure.organization_memberships.repositories import (
-    SqlAlchemyOrganizationMembershipRepository,
-)
-from app.infrastructure.organizations.repositories import SqlAlchemyOrganizationRepository
-from app.infrastructure.request_activities.repositories import (
-    SqlAlchemyRequestActivityRepository,
-)
-from app.infrastructure.request_comments.repositories import SqlAlchemyRequestCommentRepository
-from app.infrastructure.requests.repositories import SqlAlchemyRequestRepository
-from app.interfaces.http.dependencies import get_current_membership
-from app.interfaces.http.dependencies import require_membership_permission
+from app.interfaces.http.pagination import Pagination
+from app.interfaces.http.responses import paginated_response, success_response
+from app.interfaces.http.schemas.common import ApiSuccessResponse, PaginatedResponse
 from app.interfaces.http.schemas.request_comments import CreateRequestCommentRequest
-from app.interfaces.http.schemas.requests import AssignRequestRequest
-from app.interfaces.http.schemas.requests import CreateRequestRequest
-from app.interfaces.http.schemas.requests import TransitionRequestStatusRequest
+from app.interfaces.http.schemas.requests import (
+    AssignRequestRequest,
+    CreateRequestRequest,
+    TransitionRequestStatusRequest,
+    UpdateRequestRequest,
+)
+from app.interfaces.http.services import ServiceFactory
 
 router = APIRouter(prefix="/requests", tags=["requests"])
 
 
-@router.post("", response_model=RequestReadModel, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=ApiSuccessResponse[RequestReadModel],
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_request(
     payload: CreateRequestRequest,
-    session: AsyncSession = Depends(get_db_session),
+    services: ServiceFactory = Depends(get_service_factory),
     current_membership: AuthenticatedMembershipReadModel = Depends(
         require_membership_permission(MembershipPermission.CREATE_REQUEST)
     ),
-) -> RequestReadModel:
-    request_repository = SqlAlchemyRequestRepository(session=session)
-    request_activity_repository = SqlAlchemyRequestActivityRepository(session=session)
-    organization_repository = SqlAlchemyOrganizationRepository(session=session)
-    membership_repository = SqlAlchemyOrganizationMembershipRepository(session=session)
-    use_case = CreateRequestUseCase(
-        request_repository=request_repository,
-        request_activity_repository=request_activity_repository,
-        organization_repository=organization_repository,
-        organization_membership_repository=membership_repository,
+) -> ApiSuccessResponse[RequestReadModel]:
+    return success_response(
+        await services.create_request_use_case.execute(
+            current_membership.organization_id,
+            CreateRequestCommand(
+                title=payload.title,
+                description=payload.description,
+                source=payload.source,
+                created_by_membership_id=current_membership.id,
+                customer_id=payload.customer_id,
+            ),
+        )
     )
-    command = CreateRequestCommand(
-        organization_id=current_membership.organization_id,
-        title=payload.title,
-        description=payload.description,
-        source=payload.source,
-        created_by_membership_id=current_membership.id,
-    )
-    return await use_case.execute(command)
 
 
-@router.get("", response_model=list[RequestReadModel])
+@router.get(
+    "",
+    response_model=PaginatedResponse[RequestReadModel],
+)
 async def list_requests(
+    pagination: Pagination,
     q: str | None = Query(default=None, max_length=255),
     status: RequestStatus | None = Query(default=None),
+    customer_id: UUID | None = Query(default=None),
     assigned_membership_id: UUID | None = Query(default=None),
     source: RequestSource | None = Query(default=None),
-    session: AsyncSession = Depends(get_db_session),
+    services: ServiceFactory = Depends(get_service_factory),
     current_membership: AuthenticatedMembershipReadModel = Depends(
-        get_current_membership
+        require_membership_permission(MembershipPermission.VIEW_REQUESTS)
     ),
-) -> list[RequestReadModel]:
-    repository = SqlAlchemyRequestRepository(session=session)
-    use_case = ListRequestsUseCase(request_repository=repository)
-    filters = ListRequestsFilters(
-        q=q,
-        status=status,
-        assigned_membership_id=assigned_membership_id,
-        source=source,
+) -> PaginatedResponse[RequestReadModel]:
+    result = await services.list_requests_use_case.execute(
+        current_membership.organization_id,
+        ListRequestsFilters(
+            q=q,
+            status=status,
+            customer_id=customer_id,
+            assigned_membership_id=assigned_membership_id,
+            source=source,
+        ),
+        pagination,
     )
-    return await use_case.execute(current_membership.organization_id, filters)
+    return paginated_response(result)
 
 
-@router.get("/{request_id}", response_model=RequestReadModel)
+@router.get(
+    "/{request_id}",
+    response_model=ApiSuccessResponse[RequestReadModel],
+)
 async def get_request(
     request_id: UUID,
-    session: AsyncSession = Depends(get_db_session),
+    services: ServiceFactory = Depends(get_service_factory),
     current_membership: AuthenticatedMembershipReadModel = Depends(
-        get_current_membership
+        require_membership_permission(MembershipPermission.VIEW_REQUESTS)
     ),
-) -> RequestReadModel:
-    repository = SqlAlchemyRequestRepository(session=session)
-    use_case = GetRequestByIdUseCase(request_repository=repository)
-    return await use_case.execute(request_id, current_membership.organization_id)
+) -> ApiSuccessResponse[RequestReadModel]:
+    return success_response(
+        await services.get_request_by_id_use_case.execute(
+            request_id,
+            current_membership.organization_id,
+        )
+    )
 
 
-@router.get("/{request_id}/activities", response_model=list[RequestActivityReadModel])
+@router.patch(
+    "/{request_id}",
+    response_model=ApiSuccessResponse[RequestReadModel],
+)
+async def update_request(
+    request_id: UUID,
+    payload: UpdateRequestRequest,
+    services: ServiceFactory = Depends(get_service_factory),
+    current_membership: AuthenticatedMembershipReadModel = Depends(
+        require_membership_permission(MembershipPermission.CREATE_REQUEST)
+    ),
+) -> ApiSuccessResponse[RequestReadModel]:
+    return success_response(
+        await services.update_request_use_case.execute(
+            request_id=request_id,
+            organization_id=current_membership.organization_id,
+            command=UpdateRequestCommand(
+                **payload.model_dump(exclude_unset=True),
+                membership_id=current_membership.id,
+                user_id=current_membership.user_id,
+            ),
+        )
+    )
+
+
+@router.get(
+    "/{request_id}/activities",
+    response_model=PaginatedResponse[RequestActivityReadModel],
+)
 async def list_request_activities(
     request_id: UUID,
-    session: AsyncSession = Depends(get_db_session),
+    pagination: Pagination,
+    services: ServiceFactory = Depends(get_service_factory),
     current_membership: AuthenticatedMembershipReadModel = Depends(
-        get_current_membership
+        require_membership_permission(MembershipPermission.VIEW_REQUESTS)
     ),
-) -> list[RequestActivityReadModel]:
-    request_repository = SqlAlchemyRequestRepository(session=session)
-    activity_repository = SqlAlchemyRequestActivityRepository(session=session)
-    use_case = ListRequestActivitiesUseCase(
-        request_repository=request_repository,
-        request_activity_repository=activity_repository,
+) -> PaginatedResponse[RequestActivityReadModel]:
+    result = await services.list_request_activities_use_case.execute(
+        request_id,
+        current_membership.organization_id,
+        pagination,
     )
-    return await use_case.execute(request_id, current_membership.organization_id)
+    return paginated_response(result)
 
 
-@router.get("/{request_id}/comments", response_model=list[RequestCommentReadModel])
+@router.get(
+    "/{request_id}/comments",
+    response_model=PaginatedResponse[RequestCommentReadModel],
+)
 async def list_request_comments(
     request_id: UUID,
-    session: AsyncSession = Depends(get_db_session),
-    current_membership: AuthenticatedMembershipReadModel = Depends(get_current_membership),
-) -> list[RequestCommentReadModel]:
-    request_repository = SqlAlchemyRequestRepository(session=session)
-    comment_repository = SqlAlchemyRequestCommentRepository(session=session)
-    use_case = ListRequestCommentsUseCase(
-        request_repository=request_repository,
-        request_comment_repository=comment_repository,
+    pagination: Pagination,
+    services: ServiceFactory = Depends(get_service_factory),
+    current_membership: AuthenticatedMembershipReadModel = Depends(
+        require_membership_permission(MembershipPermission.VIEW_REQUESTS)
+    ),
+) -> PaginatedResponse[RequestCommentReadModel]:
+    result = await services.list_request_comments_use_case.execute(
+        request_id,
+        current_membership.organization_id,
+        pagination,
     )
-    return await use_case.execute(request_id, current_membership.organization_id)
+    return paginated_response(result)
 
 
 @router.post(
     "/{request_id}/comments",
-    response_model=RequestCommentReadModel,
+    response_model=ApiSuccessResponse[RequestCommentReadModel],
     status_code=status.HTTP_201_CREATED,
 )
 async def create_request_comment(
     request_id: UUID,
     payload: CreateRequestCommentRequest,
-    session: AsyncSession = Depends(get_db_session),
-    current_membership: AuthenticatedMembershipReadModel = Depends(get_current_membership),
-) -> RequestCommentReadModel:
-    request_repository = SqlAlchemyRequestRepository(session=session)
-    comment_repository = SqlAlchemyRequestCommentRepository(session=session)
-    activity_repository = SqlAlchemyRequestActivityRepository(session=session)
-    use_case = CreateRequestCommentUseCase(
-        request_repository=request_repository,
-        request_comment_repository=comment_repository,
-        request_activity_repository=activity_repository,
+    services: ServiceFactory = Depends(get_service_factory),
+    current_membership: AuthenticatedMembershipReadModel = Depends(
+        require_membership_permission(MembershipPermission.COMMENT_ON_REQUEST)
+    ),
+) -> ApiSuccessResponse[RequestCommentReadModel]:
+    return success_response(
+        await services.create_request_comment_use_case.execute(
+            request_id,
+            CreateRequestCommentCommand(
+                organization_id=current_membership.organization_id,
+                membership_id=current_membership.id,
+                body=payload.body,
+            ),
+        )
     )
-    command = CreateRequestCommentCommand(
-        organization_id=current_membership.organization_id,
-        membership_id=current_membership.id,
-        body=payload.body,
-    )
-    return await use_case.execute(request_id, command)
 
 
-@router.post("/{request_id}/status-transitions", response_model=RequestReadModel)
+@router.post(
+    "/{request_id}/status-transitions",
+    response_model=ApiSuccessResponse[RequestReadModel],
+)
 async def transition_request_status(
     request_id: UUID,
     payload: TransitionRequestStatusRequest,
-    session: AsyncSession = Depends(get_db_session),
+    services: ServiceFactory = Depends(get_service_factory),
     current_membership: AuthenticatedMembershipReadModel = Depends(
         require_membership_permission(MembershipPermission.TRANSITION_REQUEST_STATUS)
     ),
-) -> RequestReadModel:
-    request_repository = SqlAlchemyRequestRepository(session=session)
-    activity_repository = SqlAlchemyRequestActivityRepository(session=session)
-    membership_repository = SqlAlchemyOrganizationMembershipRepository(session=session)
-    use_case = TransitionRequestStatusUseCase(
-        request_repository=request_repository,
-        request_activity_repository=activity_repository,
-        organization_membership_repository=membership_repository,
+) -> ApiSuccessResponse[RequestReadModel]:
+    return success_response(
+        await services.transition_request_status_use_case.execute(
+            request_id=request_id,
+            command=TransitionRequestStatusCommand(
+                organization_id=current_membership.organization_id,
+                membership_id=current_membership.id,
+                user_id=current_membership.user_id,
+                new_status=payload.new_status,
+            ),
+        )
     )
-    command = TransitionRequestStatusCommand(
-        organization_id=current_membership.organization_id,
-        membership_id=current_membership.id,
-        new_status=payload.new_status,
-    )
-    return await use_case.execute(request_id=request_id, command=command)
 
 
-@router.patch("/{request_id}/assign", response_model=RequestReadModel)
+@router.patch(
+    "/{request_id}/assign",
+    response_model=ApiSuccessResponse[RequestReadModel],
+)
 async def assign_request(
     request_id: UUID,
     payload: AssignRequestRequest,
-    session: AsyncSession = Depends(get_db_session),
+    services: ServiceFactory = Depends(get_service_factory),
     current_membership: AuthenticatedMembershipReadModel = Depends(
         require_membership_permission(MembershipPermission.ASSIGN_REQUEST)
     ),
-) -> RequestReadModel:
-    request_repository = SqlAlchemyRequestRepository(session=session)
-    activity_repository = SqlAlchemyRequestActivityRepository(session=session)
-    membership_repository = SqlAlchemyOrganizationMembershipRepository(session=session)
-    use_case = AssignRequestUseCase(
-        request_repository=request_repository,
-        request_activity_repository=activity_repository,
-        organization_membership_repository=membership_repository,
+) -> ApiSuccessResponse[RequestReadModel]:
+    return success_response(
+        await services.assign_request_use_case.execute(
+            request_id=request_id,
+            command=AssignRequestCommand(
+                organization_id=current_membership.organization_id,
+                membership_id=current_membership.id,
+                assigned_membership_id=payload.assigned_membership_id,
+            ),
+        )
     )
-    command = AssignRequestCommand(
-        organization_id=current_membership.organization_id,
-        membership_id=current_membership.id,
-        assigned_membership_id=payload.assigned_membership_id,
-    )
-    return await use_case.execute(request_id=request_id, command=command)

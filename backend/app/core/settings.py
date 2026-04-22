@@ -27,7 +27,38 @@ class Settings(BaseSettings):
         default="change-this-auth-secret-in-production",
         alias="AUTH_SECRET_KEY",
     )
-    auth_token_ttl_seconds: int = Field(default=3600, alias="AUTH_TOKEN_TTL_SECONDS")
+    auth_access_token_ttl_seconds: int = Field(
+        default=900,
+        alias="AUTH_ACCESS_TOKEN_TTL_SECONDS",
+    )
+    auth_refresh_token_ttl_seconds: int = Field(
+        default=604800,
+        alias="AUTH_REFRESH_TOKEN_TTL_SECONDS",
+    )
+    auth_session_cookie_name: str = Field(
+        default="iri_session",
+        alias="AUTH_SESSION_COOKIE_NAME",
+    )
+    auth_refresh_cookie_name: str = Field(
+        default="iri_refresh",
+        alias="AUTH_REFRESH_COOKIE_NAME",
+    )
+    auth_session_cookie_samesite: str = Field(
+        default="lax",
+        alias="AUTH_SESSION_COOKIE_SAMESITE",
+    )
+    auth_session_cookie_secure: bool | None = Field(
+        default=None,
+        alias="AUTH_SESSION_COOKIE_SECURE",
+    )
+    analytics_pipeline_bottleneck_threshold_days: float = Field(
+        default=3.0,
+        alias="ANALYTICS_PIPELINE_BOTTLENECK_THRESHOLD_DAYS",
+    )
+    bootstrap_api_key: str = Field(
+        default="change-this-bootstrap-key",
+        alias="BOOTSTRAP_API_KEY",
+    )
 
     postgres_host: str = Field(default="localhost", alias="POSTGRES_HOST")
     postgres_port: int = Field(default=5432, alias="POSTGRES_PORT")
@@ -46,6 +77,27 @@ class Settings(BaseSettings):
         ):
             raise ValueError(
                 "AUTH_SECRET_KEY must be changed before running in staging or production."
+            )
+        if self.app_env.lower() in {"production", "staging"} and (
+            self.bootstrap_api_key == "change-this-bootstrap-key"
+        ):
+            raise ValueError(
+                "BOOTSTRAP_API_KEY must be changed before running in staging or production."
+            )
+
+        if self.auth_session_cookie_samesite.lower() not in {"lax", "strict", "none"}:
+            raise ValueError(
+                "AUTH_SESSION_COOKIE_SAMESITE must be one of: lax, strict, none."
+            )
+
+        cookie_secure_enabled = (
+            self.auth_session_cookie_secure
+            if self.auth_session_cookie_secure is not None
+            else self.app_env.lower() in {"production", "staging"}
+        )
+        if self.auth_session_cookie_samesite.lower() == "none" and not cookie_secure_enabled:
+            raise ValueError(
+                "AUTH_SESSION_COOKIE_SECURE must be true when AUTH_SESSION_COOKIE_SAMESITE=none."
             )
 
         return self
@@ -79,6 +131,14 @@ class Settings(BaseSettings):
     @property
     def documents_storage_dir(self) -> Path:
         return Path(self.documents_storage_path)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def auth_session_cookie_secure_enabled(self) -> bool:
+        if self.auth_session_cookie_secure is not None:
+            return self.auth_session_cookie_secure
+
+        return self.app_env.lower() in {"production", "staging"}
 
 
 @lru_cache(maxsize=1)

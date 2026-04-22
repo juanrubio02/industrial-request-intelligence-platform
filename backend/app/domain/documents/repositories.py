@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 from uuid import UUID
@@ -21,7 +22,32 @@ class DocumentRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def list_by_request_id(self, request_id: UUID) -> list[Document]:
+    async def list_by_request_id(
+        self,
+        request_id: UUID,
+        *,
+        organization_id: UUID,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[Document]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def count_by_request_id(
+        self,
+        request_id: UUID,
+        *,
+        organization_id: UUID,
+    ) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def count_by_request_ids(
+        self,
+        request_ids: Sequence[UUID],
+        *,
+        organization_id: UUID,
+    ) -> dict[UUID, int]:
         raise NotImplementedError
 
     @abstractmethod

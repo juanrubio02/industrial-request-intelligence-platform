@@ -2,7 +2,6 @@ import { DEFAULT_API_BASE_URL } from "@/lib/constants";
 import {
   clearStoredAuthState,
   getStoredActiveMembershipId,
-  getStoredSession,
 } from "@/lib/session-storage";
 import type { ApiErrorShape } from "@/lib/api/types";
 
@@ -20,6 +19,7 @@ export class ApiError extends Error {
 type ApiRequestOptions = RequestInit & {
   includeAuth?: boolean;
   includeMembership?: boolean;
+  includeOptionalMembership?: boolean;
   suppressNotFound?: boolean;
 };
 
@@ -34,16 +34,13 @@ function buildHeaders(options: ApiRequestOptions): Headers {
     headers.set("Content-Type", "application/json");
   }
 
-  if (options.includeAuth) {
-    const session = getStoredSession();
-    if (session?.accessToken) {
-      headers.set("Authorization", `Bearer ${session.accessToken}`);
-    }
-  }
-
-  if (options.includeMembership) {
+  if (options.includeMembership || options.includeOptionalMembership) {
     const membershipId = getStoredActiveMembershipId();
     if (!membershipId) {
+      if (options.includeOptionalMembership) {
+        return headers;
+      }
+
       throw new ApiError(
         400,
         "An active access context must be selected before this request can be executed.",
@@ -70,6 +67,7 @@ export async function apiRequest<T>(
   const headers = buildHeaders(options);
   const response = await fetch(`${DEFAULT_API_BASE_URL}${path}`, {
     ...options,
+    credentials: options.credentials ?? "include",
     headers,
   });
 

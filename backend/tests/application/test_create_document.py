@@ -18,7 +18,7 @@ from app.application.documents.services import (
     EnqueueDocumentProcessingUseCase,
     UploadDocumentUseCase,
 )
-from app.application.documents.storage import DocumentStorage
+from app.application.documents.storage import DocumentStorage, generate_storage_key
 from app.application.organization_memberships.exceptions import (
     OrganizationMembershipNotFoundError,
 )
@@ -29,6 +29,7 @@ from app.domain.documents.statuses import DocumentProcessingStatus
 from app.domain.organization_memberships.entities import OrganizationMembership
 from app.domain.organization_memberships.repositories import OrganizationMembershipRepository
 from app.domain.organization_memberships.roles import OrganizationMembershipRole
+from app.domain.organization_memberships.statuses import OrganizationMembershipStatus
 from app.domain.request_activities.entities import RequestActivity
 from app.domain.request_activities.repositories import RequestActivityRepository
 from app.domain.request_activities.types import RequestActivityType
@@ -52,6 +53,12 @@ class InMemoryRequestRepository(RequestRepository):
     async def get_by_id(self, request_id):
         return self._requests.get(request_id)
 
+    async def get_by_id_and_organization(self, request_id, organization_id):
+        request = self._requests.get(request_id)
+        if request is None or request.organization_id != organization_id:
+            return None
+        return request
+
     async def list_by_organization_id(self, organization_id):
         return [
             request
@@ -65,14 +72,19 @@ class InMemoryRequestRepository(RequestRepository):
         *,
         q=None,
         status=None,
+        customer_id=None,
         assigned_membership_id=None,
         source=None,
+        limit=None,
+        offset=0,
     ):
         requests = await self.list_by_organization_id(organization_id)
         if q:
             requests = [request for request in requests if q.lower() in request.title.lower()]
         if status:
             requests = [request for request in requests if request.status == status]
+        if customer_id:
+            requests = [request for request in requests if request.customer_id == customer_id]
         if assigned_membership_id:
             requests = [
                 request
@@ -81,10 +93,37 @@ class InMemoryRequestRepository(RequestRepository):
             ]
         if source:
             requests = [request for request in requests if request.source == source]
-        return requests
+        end = None if limit is None else offset + limit
+        return requests[offset:end]
 
-    async def update_status(self, request_id, new_status, updated_at):
+    async def count_by_organization_filters(
+        self,
+        organization_id,
+        *,
+        q=None,
+        status=None,
+        customer_id=None,
+        assigned_membership_id=None,
+        source=None,
+    ):
+        requests = await self.list_by_organization_filters(
+            organization_id,
+            q=q,
+            status=status,
+            customer_id=customer_id,
+            assigned_membership_id=assigned_membership_id,
+            source=source,
+        )
+        return len(requests)
+
+    async def update(self, request: Request) -> Request:
+        self._requests[request.id] = request
+        return request
+
+    async def update_status(self, request_id, organization_id, new_status, updated_at):
         request = self._requests[request_id]
+        if request.organization_id != organization_id:
+            raise ValueError(f"Request '{request_id}' was not found.")
         updated_request = Request(
             id=request.id,
             organization_id=request.organization_id,
@@ -96,6 +135,7 @@ class InMemoryRequestRepository(RequestRepository):
             assigned_membership_id=request.assigned_membership_id,
             created_at=request.created_at,
             updated_at=updated_at,
+            customer_id=request.customer_id,
         )
         self._requests[request_id] = updated_request
         return updated_request
@@ -113,6 +153,7 @@ class InMemoryRequestRepository(RequestRepository):
             assigned_membership_id=assigned_membership_id,
             created_at=request.created_at,
             updated_at=updated_at,
+            customer_id=request.customer_id,
         )
         self._requests[request_id] = updated_request
         return updated_request
@@ -135,8 +176,39 @@ class InMemoryDocumentRepository(DocumentRepository):
                 return document
         return None
 
-    async def list_by_request_id(self, request_id):
-        return [document for document in self.documents if document.request_id == request_id]
+    async def list_by_request_id(
+        self,
+        request_id,
+        *,
+        organization_id,
+        limit=None,
+        offset=0,
+    ):
+        documents = [
+            document
+            for document in self.documents
+            if document.request_id == request_id and document.organization_id == organization_id
+        ]
+        end = None if limit is None else offset + limit
+        return documents[offset:end]
+
+    async def count_by_request_id(self, request_id, *, organization_id):
+        return sum(
+            1
+            for document in self.documents
+            if document.request_id == request_id and document.organization_id == organization_id
+        )
+
+    async def count_by_request_ids(self, request_ids, *, organization_id):
+        return {
+            request_id: sum(
+                1
+                for document in self.documents
+                if document.request_id == request_id
+                and document.organization_id == organization_id
+            )
+            for request_id in request_ids
+        }
 
     async def update_processing_status(self, document_id, new_status, updated_at):
         for index, document in enumerate(self.documents):
@@ -213,19 +285,67 @@ class InMemoryOrganizationMembershipRepository(OrganizationMembershipRepository)
                 return membership
         return None
 
-    async def list_active_by_user_id(self, user_id):
-        return [
+    async def list_active_by_user_id(self, user_id, *, limit=None, offset=0):
+        memberships = [
             membership
             for membership in self._memberships.values()
             if membership.user_id == user_id and membership.is_active
         ]
+        end = None if limit is None else offset + limit
+        return memberships[offset:end]
 
-    async def list_active_by_organization_id(self, organization_id):
-        return [
+    async def count_active_by_user_id(self, user_id):
+        return sum(
+            1
+            for membership in self._memberships.values()
+            if membership.user_id == user_id and membership.is_active
+        )
+
+    async def list_active_by_organization_id(self, organization_id, *, limit=None, offset=0):
+        memberships = [
             membership
             for membership in self._memberships.values()
             if membership.organization_id == organization_id and membership.is_active
         ]
+        end = None if limit is None else offset + limit
+        return memberships[offset:end]
+
+    async def list_by_organization_id(self, organization_id, *, limit=None, offset=0):
+        memberships = [
+            membership
+            for membership in self._memberships.values()
+            if membership.organization_id == organization_id
+        ]
+        end = None if limit is None else offset + limit
+        return memberships[offset:end]
+
+    async def count_by_organization_id(self, organization_id):
+        return sum(
+            1
+            for membership in self._memberships.values()
+            if membership.organization_id == organization_id
+        )
+
+    async def list_by_ids_and_organization(self, membership_ids, organization_id):
+        return [
+            membership
+            for membership_id in membership_ids
+            if (membership := self._memberships.get(membership_id)) is not None
+            and membership.organization_id == organization_id
+        ]
+
+    async def save(self, membership: OrganizationMembership) -> OrganizationMembership:
+        self._memberships[membership.id] = membership
+        return membership
+
+    async def count_active_by_organization_and_role(self, organization_id, role):
+        return sum(
+            1
+            for membership in self._memberships.values()
+            if membership.organization_id == organization_id
+            and membership.role == role
+            and membership.is_active
+        )
 
 
 class InMemoryRequestActivityRepository(RequestActivityRepository):
@@ -236,8 +356,29 @@ class InMemoryRequestActivityRepository(RequestActivityRepository):
         self.activities.append(activity)
         return activity
 
-    async def list_by_request_id(self, request_id):
-        return [activity for activity in self.activities if activity.request_id == request_id]
+    async def list_by_request_id(
+        self,
+        request_id,
+        *,
+        organization_id,
+        limit=None,
+        offset=0,
+    ):
+        activities = [
+            activity
+            for activity in self.activities
+            if activity.request_id == request_id
+            and activity.organization_id == organization_id
+        ]
+        end = None if limit is None else offset + limit
+        return activities[offset:end]
+
+    async def count_by_request_id(self, request_id, *, organization_id):
+        return sum(
+            1
+            for activity in self.activities
+            if activity.request_id == request_id and activity.organization_id == organization_id
+        )
 
 
 class InMemoryDocumentStorage(DocumentStorage):
@@ -256,10 +397,10 @@ class InMemoryDocumentStorage(DocumentStorage):
 
 class InMemoryDocumentProcessingDispatcher(DocumentProcessingDispatcher):
     def __init__(self) -> None:
-        self.enqueued_document_ids: list[object] = []
+        self.enqueued_jobs: list[tuple[object, object]] = []
 
-    async def enqueue(self, document_id) -> None:
-        self.enqueued_document_ids.append(document_id)
+    async def enqueue(self, document_id, organization_id) -> None:
+        self.enqueued_jobs.append((document_id, organization_id))
 
 
 def _request(organization_id) -> Request:
@@ -285,7 +426,8 @@ def _membership(organization_id) -> OrganizationMembership:
         organization_id=organization_id,
         user_id=uuid4(),
         role=OrganizationMembershipRole.ADMIN,
-        is_active=True,
+        status=OrganizationMembershipStatus.ACTIVE,
+        joined_at=now,
         created_at=now,
         updated_at=now,
     )
@@ -310,7 +452,6 @@ async def test_create_document_use_case_creates_pending_document_and_activity() 
             organization_id=organization_id,
             uploaded_by_membership_id=membership.id,
             original_filename="quote.pdf",
-            storage_key="requests/quote.pdf",
             content_type="application/pdf",
             size_bytes=1024,
         )
@@ -320,12 +461,14 @@ async def test_create_document_use_case_creates_pending_document_and_activity() 
     assert result.organization_id == organization_id
     assert result.uploaded_by_membership_id == membership.id
     assert result.original_filename == "quote.pdf"
-    assert result.storage_key == "requests/quote.pdf"
+    assert result.storage_key.startswith("documents/")
+    assert result.storage_key.endswith(".pdf")
     assert result.processing_status == DocumentProcessingStatus.PENDING
     assert len(activity_repository.activities) == 1
     activity = activity_repository.activities[0]
     assert activity.type == RequestActivityType.DOCUMENT_UPLOADED
     assert activity.payload["document_id"] == str(result.id)
+    assert activity.payload["storage_key"] == result.storage_key
     assert activity.payload["processing_status"] == DocumentProcessingStatus.PENDING.value
 
 
@@ -361,9 +504,17 @@ async def test_upload_document_use_case_stores_file_and_creates_document() -> No
 
     assert result.processing_status == DocumentProcessingStatus.PENDING
     assert result.size_bytes == 11
+    assert result.storage_key.startswith("documents/")
+    assert result.storage_key.endswith(".pdf")
     assert result.storage_key in storage.files
     assert storage.files[result.storage_key] == b"pdf-content"
     assert activity_repository.activities[0].type == RequestActivityType.DOCUMENT_UPLOADED
+
+
+def test_generate_storage_key_uses_safe_extension_only() -> None:
+    assert generate_storage_key("quote.PDF").endswith(".pdf")
+    assert generate_storage_key("../../etc/passwd").count("/") == 1
+    assert not generate_storage_key("invoice.tx$t").endswith(".tx$t")
 
 
 @pytest.mark.anyio
@@ -413,7 +564,6 @@ async def test_enqueue_document_processing_use_case_enqueues_pending_document() 
             organization_id=organization_id,
             uploaded_by_membership_id=membership.id,
             original_filename="quote.pdf",
-            storage_key="documents/quote.pdf",
             content_type="application/pdf",
             size_bytes=128,
         )
@@ -433,7 +583,7 @@ async def test_enqueue_document_processing_use_case_enqueues_pending_document() 
 
     assert result.document_id == created_document.id
     assert result.processing_status == DocumentProcessingStatus.PENDING
-    assert dispatcher.enqueued_document_ids == [created_document.id]
+    assert dispatcher.enqueued_jobs == [(created_document.id, organization_id)]
 
 
 @pytest.mark.anyio
@@ -470,7 +620,6 @@ async def test_create_document_use_case_rejects_missing_request() -> None:
                 organization_id=organization_id,
                 uploaded_by_membership_id=membership.id,
                 original_filename="missing.pdf",
-                storage_key="missing.pdf",
                 content_type="application/pdf",
                 size_bytes=512,
             )
@@ -495,7 +644,6 @@ async def test_create_document_use_case_rejects_missing_membership() -> None:
                 organization_id=organization_id,
                 uploaded_by_membership_id=uuid4(),
                 original_filename="missing-membership.pdf",
-                storage_key="missing-membership.pdf",
                 content_type="application/pdf",
                 size_bytes=512,
             )
@@ -522,7 +670,6 @@ async def test_create_document_use_case_rejects_membership_from_other_organizati
                 organization_id=organization_id,
                 uploaded_by_membership_id=membership.id,
                 original_filename="cross-org.pdf",
-                storage_key="cross-org.pdf",
                 content_type="application/pdf",
                 size_bytes=512,
             )
@@ -548,7 +695,6 @@ async def test_create_document_use_case_rejects_request_from_other_organization(
                 organization_id=other_organization_id,
                 uploaded_by_membership_id=membership.id,
                 original_filename="wrong-org.pdf",
-                storage_key="wrong-org.pdf",
                 content_type="application/pdf",
                 size_bytes=512,
             )

@@ -11,7 +11,7 @@ import { type Locale, SUPPORTED_LOCALES } from "@/i18n/config";
 import { useI18n } from "@/i18n/hooks";
 
 export function Topbar() {
-  const { logout, user } = useAuth();
+  const { activeOrganization, logout, user } = useAuth();
   const { activeMembership, memberships, setActiveMembershipId } = useMembership();
   const { locale, messages, setLocale } = useI18n();
 
@@ -63,9 +63,12 @@ export function Topbar() {
             <p className="text-sm font-semibold tracking-[-0.01em]">
               {user?.full_name ?? messages.shell.topbar.userFallback}
             </p>
-            <p className="text-xs text-slate-500">{user?.email}</p>
+            <p className="text-xs text-slate-500">
+              {user?.email}
+              {activeOrganization ? ` · ${activeOrganization.name}` : ""}
+            </p>
           </div>
-          <Button type="button" variant="secondary" onClick={logout}>
+          <Button type="button" variant="secondary" onClick={() => void logout()}>
             <LogOut className="h-4 w-4" />
             {messages.shell.topbar.signOut}
           </Button>

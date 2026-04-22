@@ -18,3 +18,4 @@ class Request:
     assigned_membership_id: UUID | None
     created_at: datetime
     updated_at: datetime
+    customer_id: UUID | None = None

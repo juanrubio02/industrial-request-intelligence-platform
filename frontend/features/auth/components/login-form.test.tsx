@@ -1,3 +1,4 @@
+import { ApiError } from "@/lib/api/client";
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -52,5 +53,26 @@ describe("LoginForm", () => {
       expect(login).toHaveBeenCalledWith("alice@example.com", "StrongPass123!");
       expect(replace).toHaveBeenCalledWith("/dashboard");
     });
+  });
+
+  it("shows an error toast when credentials are invalid", async () => {
+    const user = userEvent.setup();
+    login.mockRejectedValue(new ApiError(401, "Invalid email or password."));
+
+    render(<LoginForm />);
+
+    await user.type(screen.getByLabelText(/correo electrónico/i), "alice@example.com");
+    await user.type(screen.getByLabelText(/contraseña/i), "WrongPass123!");
+    await user.click(screen.getByRole("button", { name: /iniciar sesión/i }));
+
+    await waitFor(() => {
+      expect(pushToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tone: "error",
+          description: "Invalid email or password.",
+        }),
+      );
+    });
+    expect(replace).not.toHaveBeenCalled();
   });
 });

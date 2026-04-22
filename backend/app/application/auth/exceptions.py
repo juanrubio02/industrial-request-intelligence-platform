@@ -9,7 +9,11 @@ class InvalidAccessTokenError(AuthenticationError):
     """Raised when the provided access token is invalid."""
 
 
-class InvalidMembershipContextError(AuthorizationError):
+class InvalidRefreshTokenError(AuthenticationError):
+    """Raised when the provided refresh token is invalid."""
+
+
+class InvalidMembershipContextError(AuthenticationError):
     """Raised when the provided membership context is invalid for the authenticated user."""
 
 

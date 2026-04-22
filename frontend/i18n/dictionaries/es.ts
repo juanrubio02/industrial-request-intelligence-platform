@@ -14,6 +14,7 @@ export const es = {
         requests: "Solicitudes",
         newRequest: "Nueva solicitud",
         demoIntake: "Demo guiada",
+        settingsUsers: "Equipo",
       },
       intelligence: {
         eyebrow: "Inteligencia documental",
@@ -72,45 +73,57 @@ export const es = {
   },
   dashboard: {
     header: {
-      eyebrow: "Resumen operativo",
-      title: "Operaciones de solicitudes impulsadas por documentos",
+      eyebrow: "Pipeline intelligence",
+      title: "Inteligencia operativa del pipeline",
       description:
-        "Controla el flujo comercial, revisa actividad reciente y monitoriza la preparación de inteligencia documental desde un único panel operativo.",
+        "Entiende el flujo completo del pipeline, detecta bloqueos y mide conversión, velocidad y permanencia media por etapa desde datos reales del backend.",
     },
-    stats: {
+    loadError:
+      "No se pudo cargar la inteligencia del pipeline. Verifica la API y vuelve a intentarlo.",
+    empty: {
+      title: "Todavía no hay suficientes solicitudes para analizar el pipeline",
+      description:
+        "En cuanto el equipo empiece a registrar solicitudes, este dashboard mostrará conversión, cuellos de botella y tiempos medios por etapa.",
+      action: "Crear solicitud",
+    },
+    kpis: {
       totalRequests: "Solicitudes totales",
-      totalRequestsHelper: "Pipeline por organización.",
-      openPipeline: "Pipeline abierto",
-      openPipelineHelper: "Solicitudes todavía en curso.",
-      systemHealth: "Estado del sistema",
-      systemHealthHelperLoading: "Cargando estado del backend.",
-      recentSignals: "Señales recientes",
-      recentSignalsHelper: "Últimas solicitudes visibles para operaciones.",
-      checking: "COMPROBANDO",
+      totalRequestsHelper: "Volumen total monitorizado en la organización activa.",
+      conversionRate: "Conversión",
+      conversionRateHelper: "Solicitudes ganadas sobre el total del pipeline.",
+      lossRate: "Pérdida",
+      lossRateHelper: "Solicitudes perdidas sobre el total registrado.",
+      pipelineVelocity: "Velocidad del pipeline",
+      pipelineVelocityHelper: "Tiempo medio desde nueva oportunidad hasta ganada.",
     },
-    recentRequests: {
-      eyebrow: "Solicitudes recientes",
-      title: "Intake comercial en vivo",
-      action: "Abrir listado completo",
-      empty:
-        "Todavía no hay solicitudes en esta organización. Crea la primera para iniciar el flujo operativo.",
+    funnel: {
+      eyebrow: "Embudo",
+      title: "Funnel del pipeline",
+      description:
+        "Distribución actual por fase para entender el avance y el estrechamiento comercial.",
+      count: "{count} solicitudes",
     },
-    systemState: {
-      eyebrow: "Estado del sistema",
-      title: "Servicios backend de inteligencia",
-      apiAvailable: "API disponible",
-      apiDescription: "El health endpoint responde {status}.",
-      intelligenceOnline: "Inteligencia de solicitudes activa",
-      intelligenceDescription:
-        "OCR, resúmenes y campos estructurados están disponibles a nivel documental.",
-      pending: "pendiente",
+    stageDuration: {
+      eyebrow: "Duración por fase",
+      title: "Tiempo medio por etapa",
+      description:
+        "Promedio de días que una solicitud permanece en cada estado antes de avanzar o cerrarse.",
     },
-    nextStep: {
-      eyebrow: "Flujo del operador",
-      title: "Siguiente paso recomendado",
-      actionTitle: "Registrar una nueva solicitud",
-      actionDescription:
-        "Crea una nueva entrada industrial y adjunta documentos inmediatamente.",
+    bottlenecks: {
+      eyebrow: "Cuellos de botella",
+      title: "Alertas de fricción operativa",
+      description:
+        "Estados cuyo tiempo medio supera el umbral configurado para el pipeline.",
+      stageExceeded: "Tiempo medio detectado en esta fase:",
+      healthyTitle: "No se han detectado cuellos de botella",
+      healthyDescription:
+        "Ninguna etapa supera el umbral actual. El pipeline se mueve dentro del rango esperado.",
+      ctaTitle: "Abrir pipeline operativo",
+      ctaDescription:
+        "Revisa las solicitudes activas y actúa directamente desde la vista de requests.",
+    },
+    common: {
+      daysShort: "d",
     },
   },
   demoIntake: {
@@ -187,6 +200,32 @@ export const es = {
       allSources: "Todos los orígenes",
       allAssignees: "Todos los responsables",
       reset: "Limpiar filtros",
+    },
+    views: {
+      list: "Vista lista",
+      pipeline: "Vista pipeline",
+    },
+    pipeline: {
+      eyebrow: "Pipeline visual",
+      description:
+        "Misma data, mismos filtros y mismas transiciones del backend, organizada por fase para leer el flujo completo de un vistazo.",
+      emptyColumn: "No hay solicitudes en esta fase.",
+      emptyDescription:
+        "Las solicitudes aparecerán aquí en cuanto el equipo empiece a registrar demanda industrial.",
+      updatedLabel: "Actualizada",
+      assigneeLabel: "Responsable:",
+      documentsLabel: "Docs:",
+      commentsLabel: "Comentarios:",
+      open: "Abrir",
+      moveLabel: "Mover solicitud",
+      movePlaceholder: "Mover a...",
+      moveAction: "Mover",
+      metrics: {
+        total: "Total",
+        open: "En curso",
+        won: "{count} ganadas",
+        lost: "{count} perdidas",
+      },
     },
     new: {
       eyebrow: "Crear",
@@ -306,6 +345,53 @@ export const es = {
       NOTE_ADDED: "Nota añadida",
     },
   },
+  organizationMembers: {
+    header: {
+      eyebrow: "Gobierno interno",
+      title: "Miembros y accesos",
+      description:
+        "Gestiona el equipo de la organización activa, ajusta roles base y activa o desactiva accesos internos sin salir del workspace.",
+      activeRoleLabel: "Rol activo:",
+    },
+    loadError:
+      "No se pudo cargar el equipo de la organización activa. Verifica los permisos y vuelve a intentarlo.",
+    empty: {
+      title: "Todavía no hay miembros en esta organización",
+      description:
+        "En cuanto se asignen accesos internos, el equipo aparecerá aquí para poder revisar rol, estado y fecha de alta.",
+    },
+    noPermission: {
+      title: "No tienes permisos para gestionar miembros",
+      description:
+        "Esta pantalla está reservada a roles OWNER y ADMIN de la organización activa. Si necesitas gestionar accesos, solicita permisos a un responsable de la cuenta.",
+    },
+    table: {
+      columns: {
+        member: "Miembro",
+        role: "Rol",
+        status: "Estado",
+        joinedAt: "Alta",
+        actions: "Acciones",
+      },
+      roleSelectLabel: "Cambiar rol del miembro",
+      statusSelectLabel: "Cambiar estado del miembro",
+      currentUser: "Tu acceso",
+      memberManagedInline: "Gestionado inline",
+    },
+    statuses: {
+      ACTIVE: "Activo",
+      DISABLED: "Deshabilitado",
+    },
+    toasts: {
+      roleUpdatedTitle: "Rol actualizado",
+      roleUpdatedDescription: "El rol del miembro ya está actualizado.",
+      roleErrorTitle: "No se pudo actualizar el rol",
+      statusUpdatedTitle: "Estado actualizado",
+      statusUpdatedDescription: "El estado del miembro ya está actualizado.",
+      statusErrorTitle: "No se pudo actualizar el estado",
+      fallbackError: "No se pudo guardar el cambio del miembro.",
+    },
+  },
   documents: {
     panel: {
       eyebrow: "Documentos adjuntos",
@@ -413,7 +499,9 @@ export const es = {
     memberships: {
       OWNER: "Propietario",
       ADMIN: "Administrador",
+    MANAGER: "Gestor",
       MEMBER: "Miembro",
+    VIEWER: "Visualizador",
     },
   },
 } as const;

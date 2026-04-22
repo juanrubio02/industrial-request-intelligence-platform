@@ -63,6 +63,15 @@ export function RequestListTable({
         ),
       },
       {
+        accessorKey: "documents_count",
+        header: messages.requests.list.columns.documents,
+        cell: ({ row }) => (
+          <Badge variant="neutral" size="sm">
+            {row.original.documents_count ?? 0}
+          </Badge>
+        ),
+      },
+      {
         id: "actions",
         header: messages.requests.list.columns.actions,
         cell: ({ row }) => (

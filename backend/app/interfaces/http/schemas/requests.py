@@ -12,6 +12,15 @@ class CreateRequestRequest(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=5000)
     source: RequestSource
+    customer_id: UUID | None = None
+
+
+class UpdateRequestRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = Field(default=None, max_length=5000)
+    customer_id: UUID | None = None
 
 
 class TransitionRequestStatusRequest(BaseModel):

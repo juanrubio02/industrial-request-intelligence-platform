@@ -26,6 +26,40 @@ async def _create_user(
     return response.json()
 
 
+async def _login(
+    api_client: AsyncClient,
+    email: str,
+    password: str = "StrongPass123!",
+) -> dict:
+    response = await api_client.post(
+        "/auth/login",
+        json={"email": email, "password": password},
+    )
+    assert response.status_code == 200
+    return response.json()
+
+
+async def _create_membership(
+    api_client: AsyncClient,
+    organization_id: str,
+    user_id: str,
+    role: str = "ADMIN",
+) -> dict:
+    response = await api_client.post(
+        f"/organizations/{organization_id}/memberships",
+        json={"user_id": user_id, "role": role},
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+def _membership_headers(access_token: str, membership_id: str) -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {access_token}",
+        "X-Membership-Id": membership_id,
+    }
+
+
 @pytest.mark.anyio
 @pytest.mark.parametrize(
     "role",
@@ -61,21 +95,59 @@ async def test_get_organization_membership_returns_membership_in_organization(
     api_client: AsyncClient,
 ) -> None:
     organization = await _create_organization(api_client, "Nova", "nova")
-    user = await _create_user(api_client, "nova-user@example.com", "Nova User")
+    owner = await _create_user(api_client, "nova-owner@example.com", "Nova Owner")
+    owner_membership_response = await api_client.post(
+        f"/organizations/{organization['id']}/memberships",
+        json={"user_id": owner["id"], "role": OrganizationMembershipRole.OWNER.value},
+    )
+    owner_membership = owner_membership_response.json()
+    auth_payload = await _login(api_client, "nova-owner@example.com")
+    member_user = await _create_user(api_client, "nova-user@example.com", "Nova User")
     create_membership_response = await api_client.post(
         f"/organizations/{organization['id']}/memberships",
-        json={"user_id": user["id"], "role": OrganizationMembershipRole.MEMBER.value},
+        json={"user_id": member_user["id"], "role": OrganizationMembershipRole.MEMBER.value},
     )
     membership = create_membership_response.json()
 
     response = await api_client.get(
-        f"/organizations/{organization['id']}/memberships/{membership['id']}"
+        f"/organizations/{organization['id']}/memberships/{membership['id']}",
+        headers=_membership_headers(auth_payload["access_token"], owner_membership["id"]),
     )
 
     assert response.status_code == 200
     assert response.json()["id"] == membership["id"]
     assert response.json()["organization_id"] == organization["id"]
     assert response.json()["role"] == OrganizationMembershipRole.MEMBER.value
+
+
+@pytest.mark.anyio
+async def test_get_organization_membership_rejects_spoofed_membership_context(
+    api_client: AsyncClient,
+) -> None:
+    organization = await _create_organization(api_client, "Spoof Members", "spoof-members")
+    owner = await _create_user(api_client, "spoof-members-owner@example.com", "Spoof Members Owner")
+    intruder = await _create_user(api_client, "spoof-members-intruder@example.com", "Spoof Members Intruder")
+    owner_membership = await _create_membership(
+        api_client,
+        organization["id"],
+        owner["id"],
+        role="OWNER",
+    )
+    intruder_membership = await _create_membership(
+        api_client,
+        organization["id"],
+        intruder["id"],
+        role="MEMBER",
+    )
+    auth_payload = await _login(api_client, "spoof-members-owner@example.com")
+
+    response = await api_client.get(
+        f"/organizations/{organization['id']}/memberships/{owner_membership['id']}",
+        headers=_membership_headers(auth_payload["access_token"], intruder_membership["id"]),
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Membership context is invalid."
 
 
 @pytest.mark.anyio

@@ -5,6 +5,7 @@ from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.domain.organization_memberships.roles import OrganizationMembershipRole
+from app.domain.organization_memberships.statuses import OrganizationMembershipStatus
 from app.infrastructure.database.base import Base
 
 
@@ -37,7 +38,22 @@ class OrganizationMembershipModel(Base):
         ),
         nullable=False,
     )
+    status: Mapped[OrganizationMembershipStatus] = mapped_column(
+        Enum(
+            OrganizationMembershipStatus,
+            name="organization_membership_status",
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        nullable=False,
+        default=OrganizationMembershipStatus.ACTIVE,
+        server_default=OrganizationMembershipStatus.ACTIVE.value,
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    joined_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

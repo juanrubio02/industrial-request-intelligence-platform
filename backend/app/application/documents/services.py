@@ -1,8 +1,8 @@
-from pathlib import PurePath
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
+from app.application.common.pagination import PaginatedResult, PaginationParams
 from app.application.organization_memberships.exceptions import (
     OrganizationMembershipNotFoundError,
 )
@@ -23,7 +23,7 @@ from app.application.documents.processing import DocumentProcessingOutput
 from app.application.documents.processing import DocumentProcessor
 from app.application.documents.schemas import DocumentProcessingEnqueuedReadModel
 from app.application.documents.schemas import DocumentReadModel
-from app.application.documents.storage import DocumentStorage
+from app.application.documents.storage import DocumentStorage, generate_storage_key
 from app.domain.document_processing_results.entities import DocumentProcessingResult
 from app.domain.document_processing_results.repositories import (
     DocumentProcessingResultRepository,
@@ -80,13 +80,14 @@ class CreateDocumentUseCase:
             )
 
         now = datetime.now(UTC)
+        storage_key = command.storage_key or generate_storage_key(command.original_filename)
         document = Document(
             id=uuid4(),
             request_id=command.request_id,
             organization_id=command.organization_id,
             uploaded_by_membership_id=command.uploaded_by_membership_id,
             original_filename=command.original_filename,
-            storage_key=command.storage_key,
+            storage_key=storage_key,
             content_type=command.content_type,
             size_bytes=command.size_bytes,
             processing_status=DocumentProcessingStatus.PENDING,
@@ -134,11 +135,7 @@ class UploadDocumentUseCase:
             raise DocumentUploadInvalidFileError("Uploaded file cannot be empty.")
 
         content_type = command.content_type or "application/octet-stream"
-        storage_key = self._build_storage_key(
-            organization_id=command.organization_id,
-            request_id=command.request_id,
-            original_filename=command.original_filename,
-        )
+        storage_key = generate_storage_key(command.original_filename)
 
         await self._document_storage.save(
             storage_key=storage_key,
@@ -161,16 +158,6 @@ class UploadDocumentUseCase:
         except Exception:
             await self._document_storage.delete(storage_key=storage_key)
             raise
-
-    @staticmethod
-    def _build_storage_key(
-        *,
-        organization_id: UUID,
-        request_id: UUID,
-        original_filename: str,
-    ) -> str:
-        suffix = PurePath(original_filename).suffix.lower()
-        return f"documents/{organization_id}/{request_id}/{uuid4().hex}{suffix}"
 
 
 class GetDocumentByIdUseCase:
@@ -198,16 +185,31 @@ class ListRequestDocumentsUseCase:
         self,
         request_id: UUID,
         organization_id: UUID,
-    ) -> list[DocumentReadModel]:
+        pagination: PaginationParams,
+    ) -> PaginatedResult[DocumentReadModel]:
         request = await self._request_repository.get_by_id(request_id)
         if request is None or request.organization_id != organization_id:
             raise RequestNotFoundError(f"Request '{request_id}' was not found.")
 
-        documents = await self._document_repository.list_by_request_id(request_id)
-        return [
-            DocumentReadModel.model_validate(document, from_attributes=True)
-            for document in documents
-        ]
+        documents = await self._document_repository.list_by_request_id(
+            request_id,
+            organization_id=organization_id,
+            limit=pagination.limit,
+            offset=pagination.offset,
+        )
+        total = await self._document_repository.count_by_request_id(
+            request_id,
+            organization_id=organization_id,
+        )
+        return PaginatedResult(
+            items=[
+                DocumentReadModel.model_validate(document, from_attributes=True)
+                for document in documents
+            ],
+            total=total,
+            limit=pagination.limit,
+            offset=pagination.offset,
+        )
 
 
 class EnqueueDocumentProcessingUseCase:
@@ -232,12 +234,34 @@ class EnqueueDocumentProcessingUseCase:
                 "The provided document does not belong to the provided organization."
             )
 
-        if document.processing_status is not DocumentProcessingStatus.PENDING:
-            raise InvalidDocumentProcessingStatusTransitionError(
-                "Only documents in 'PENDING' status can be enqueued for processing."
+        if document.processing_status in {
+            DocumentProcessingStatus.PROCESSING,
+            DocumentProcessingStatus.PROCESSED,
+        }:
+            return DocumentProcessingEnqueuedReadModel(
+                document_id=document.id,
+                processing_status=document.processing_status,
             )
 
-        await self._document_processing_dispatcher.enqueue(document.id)
+        if document.processing_status is DocumentProcessingStatus.FAILED:
+            if not is_valid_document_processing_status_transition(
+                document.processing_status,
+                DocumentProcessingStatus.PENDING,
+            ):
+                raise InvalidDocumentProcessingStatusTransitionError(
+                    "Cannot reset failed document back to 'PENDING' for reprocessing."
+                )
+            document = await self._document_repository.update_processing_status(
+                document_id=document.id,
+                new_status=DocumentProcessingStatus.PENDING,
+                updated_at=datetime.now(UTC),
+            )
+
+        await self._document_processing_dispatcher.enqueue(
+            document.id,
+            document.organization_id,
+        )
+        await self._document_repository.save_changes()
         return DocumentProcessingEnqueuedReadModel(
             document_id=document.id,
             processing_status=document.processing_status,

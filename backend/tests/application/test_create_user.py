@@ -24,6 +24,13 @@ class InMemoryUserRepository(UserRepository):
     async def get_by_email(self, email: str) -> User | None:
         return self._users_by_email.get(email)
 
+    async def list_by_ids(self, user_ids):
+        return [
+            user
+            for user_id in user_ids
+            if (user := self._users_by_id.get(user_id)) is not None
+        ]
+
 
 @pytest.mark.anyio
 async def test_create_user_use_case_creates_active_user() -> None:

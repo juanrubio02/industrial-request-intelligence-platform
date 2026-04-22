@@ -80,7 +80,10 @@ export function RequestDetailScreen({ requestId }: { requestId: string }) {
         actions={
           <>
             <RequestStatusBadge status={request.status} />
-            <RequestStatusActions requestId={request.id} status={request.status} />
+            <RequestStatusActions
+              requestId={request.id}
+              availableTransitions={request.available_status_transitions ?? []}
+            />
           </>
         }
       />

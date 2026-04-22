@@ -5,4 +5,3 @@ class OrganizationMembershipRole(StrEnum):
     OWNER = "OWNER"
     ADMIN = "ADMIN"
     MEMBER = "MEMBER"
-

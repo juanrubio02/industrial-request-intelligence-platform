@@ -12,7 +12,7 @@ ALLOWED_DOCUMENT_PROCESSING_STATUS_TRANSITIONS: dict[
         }
     ),
     DocumentProcessingStatus.PROCESSED: frozenset(),
-    DocumentProcessingStatus.FAILED: frozenset(),
+    DocumentProcessingStatus.FAILED: frozenset({DocumentProcessingStatus.PENDING}),
 }
 
 

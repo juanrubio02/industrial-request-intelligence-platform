@@ -15,7 +15,7 @@ class DocumentProcessor(ABC):
 
 class DocumentProcessingDispatcher(ABC):
     @abstractmethod
-    async def enqueue(self, document_id: UUID) -> None:
+    async def enqueue(self, document_id: UUID, organization_id: UUID) -> None:
         raise NotImplementedError
 
 

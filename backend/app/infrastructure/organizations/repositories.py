@@ -33,8 +33,7 @@ class SqlAlchemyOrganizationRepository(OrganizationRepository):
                 f"Organization slug '{organization.slug}' already exists."
             ) from exc
 
-        await self._session.refresh(model)
-        return self._to_domain(model)
+        return organization
 
     async def get_by_id(self, organization_id: UUID) -> Organization | None:
         model = await self._session.get(OrganizationModel, organization_id)

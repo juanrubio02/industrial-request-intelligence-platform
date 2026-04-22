@@ -102,6 +102,9 @@ async def test_post_request_status_transitions_applies_valid_transition(
 
     assert response.status_code == 200
     assert response.json()["status"] == RequestStatus.UNDER_REVIEW.value
+    assert response.json()["available_status_transitions"] == [
+        RequestStatus.QUOTE_PREPARING.value
+    ]
 
 
 @pytest.mark.anyio
@@ -166,12 +169,12 @@ async def test_post_request_status_transitions_returns_403_for_missing_membershi
         headers={"Authorization": f"Bearer {auth_payload['access_token']}"},
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 401
     assert response.json()["detail"] == "A valid membership context is required."
 
 
 @pytest.mark.anyio
-async def test_post_request_status_transitions_returns_conflict_for_membership_from_other_organization(
+async def test_post_request_status_transitions_returns_not_found_for_request_from_other_organization(
     api_client: AsyncClient,
 ) -> None:
     organization = await _create_organization(api_client, "Alpha Pipeline", "alpha-pipeline")
@@ -192,11 +195,7 @@ async def test_post_request_status_transitions_returns_conflict_for_membership_f
         headers=_membership_headers(auth_payload["access_token"], actor_membership["id"]),
     )
 
-    assert response.status_code == 409
-    assert (
-        response.json()["detail"]
-        == "The provided request does not belong to the provided organization."
-    )
+    assert response.status_code == 404
 
 
 @pytest.mark.anyio

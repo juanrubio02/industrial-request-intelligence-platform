@@ -48,6 +48,13 @@ def _membership_headers(access_token: str, membership_id: str) -> dict[str, str]
     }
 
 
+def _assert_generated_storage_key(storage_key: str, *, suffix: str | None = None) -> None:
+    assert storage_key.startswith("documents/")
+    assert ".." not in storage_key
+    if suffix is not None:
+        assert storage_key.endswith(suffix)
+
+
 async def _create_membership(
     api_client: AsyncClient,
     organization_id: str,
@@ -97,7 +104,6 @@ async def test_post_request_documents_creates_document(api_client: AsyncClient) 
         f"/requests/{request_payload['id']}/documents",
         json={
             "original_filename": "specification.pdf",
-            "storage_key": "requests/specification.pdf",
             "content_type": "application/pdf",
             "size_bytes": 2048,
         },
@@ -111,6 +117,7 @@ async def test_post_request_documents_creates_document(api_client: AsyncClient) 
     assert payload["organization_id"] == organization["id"]
     assert payload["uploaded_by_membership_id"] == membership["id"]
     assert payload["original_filename"] == "specification.pdf"
+    _assert_generated_storage_key(payload["storage_key"], suffix=".pdf")
     assert payload["processing_status"] == DocumentProcessingStatus.PENDING.value
 
 
@@ -147,6 +154,7 @@ async def test_post_request_documents_upload_stores_file_and_creates_document(
     assert payload["request_id"] == request_payload["id"]
     assert payload["size_bytes"] == 18
     assert payload["content_type"] == "application/pdf"
+    _assert_generated_storage_key(payload["storage_key"], suffix=".pdf")
     assert stored_path.exists()
     assert stored_path.read_bytes() == b"binary-pdf-content"
 
@@ -166,7 +174,6 @@ async def test_get_document_by_id_returns_document(api_client: AsyncClient) -> N
         f"/requests/{request_payload['id']}/documents",
         json={
             "original_filename": "drawing.dxf",
-            "storage_key": "requests/drawing.dxf",
             "content_type": "application/dxf",
             "size_bytes": 4096,
         },
@@ -181,7 +188,51 @@ async def test_get_document_by_id_returns_document(api_client: AsyncClient) -> N
 
     assert response.status_code == 200
     assert response.json()["id"] == document_payload["id"]
-    assert response.json()["storage_key"] == "requests/drawing.dxf"
+    _assert_generated_storage_key(response.json()["storage_key"], suffix=".dxf")
+
+
+@pytest.mark.anyio
+async def test_get_document_by_id_rejects_spoofed_membership_context(
+    api_client: AsyncClient,
+) -> None:
+    organization = await _create_organization(api_client, "Spoof Docs", "spoof-docs")
+    owner = await _create_user(api_client, "spoof-docs-owner@example.com", "Spoof Docs Owner")
+    intruder = await _create_user(api_client, "spoof-docs-intruder@example.com", "Spoof Docs Intruder")
+    owner_membership = await _create_membership(
+        api_client,
+        organization["id"],
+        owner["id"],
+        role="OWNER",
+    )
+    intruder_membership = await _create_membership(
+        api_client,
+        organization["id"],
+        intruder["id"],
+        role="MEMBER",
+    )
+    auth_payload = await _login(api_client, "spoof-docs-owner@example.com")
+    request_payload = await _create_request(
+        api_client,
+        owner_membership["id"],
+        auth_payload["access_token"],
+    )
+    create_response = await api_client.post(
+        f"/requests/{request_payload['id']}/documents",
+        json={
+            "original_filename": "spoofed.pdf",
+            "content_type": "application/pdf",
+            "size_bytes": 512,
+        },
+        headers=_membership_headers(auth_payload["access_token"], owner_membership["id"]),
+    )
+
+    response = await api_client.get(
+        f"/documents/{create_response.json()['id']}",
+        headers=_membership_headers(auth_payload["access_token"], intruder_membership["id"]),
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Membership context is invalid."
 
 
 @pytest.mark.anyio
@@ -200,7 +251,6 @@ async def test_get_request_documents_returns_request_documents(api_client: Async
         f"/requests/{request_payload['id']}/documents",
         json={
             "original_filename": "doc-1.pdf",
-            "storage_key": "requests/doc-1.pdf",
             "content_type": "application/pdf",
             "size_bytes": 100,
         },
@@ -210,7 +260,6 @@ async def test_get_request_documents_returns_request_documents(api_client: Async
         f"/requests/{request_payload['id']}/documents",
         json={
             "original_filename": "doc-2.pdf",
-            "storage_key": "requests/doc-2.pdf",
             "content_type": "application/pdf",
             "size_bytes": 200,
         },
@@ -246,7 +295,6 @@ async def test_post_request_documents_creates_document_uploaded_activity(
         f"/requests/{request_payload['id']}/documents",
         json={
             "original_filename": "offer.pdf",
-            "storage_key": "requests/offer.pdf",
             "content_type": "application/pdf",
             "size_bytes": 1234,
         },
@@ -264,7 +312,7 @@ async def test_post_request_documents_creates_document_uploaded_activity(
     assert len(activities) == 2
     assert activities[1]["type"] == "DOCUMENT_UPLOADED"
     assert activities[1]["payload"]["document_id"] == document_payload["id"]
-    assert activities[1]["payload"]["storage_key"] == "requests/offer.pdf"
+    assert activities[1]["payload"]["storage_key"] == document_payload["storage_key"]
 
 
 @pytest.mark.anyio
@@ -300,7 +348,6 @@ async def test_get_document_by_id_returns_not_found_for_foreign_tenant(
         f"/requests/{request_payload['id']}/documents",
         json={
             "original_filename": "foreign-protected.pdf",
-            "storage_key": "requests/foreign-protected.pdf",
             "content_type": "application/pdf",
             "size_bytes": 2048,
         },
@@ -385,7 +432,6 @@ async def test_post_request_documents_returns_not_found_for_missing_request(
         f"/requests/{uuid4()}/documents",
         json={
             "original_filename": "missing-request.pdf",
-            "storage_key": "requests/missing-request.pdf",
             "content_type": "application/pdf",
             "size_bytes": 100,
         },
@@ -414,7 +460,7 @@ async def test_post_request_documents_upload_returns_not_found_for_missing_reque
 
 
 @pytest.mark.anyio
-async def test_post_request_documents_returns_403_for_membership_from_other_user(
+async def test_post_request_documents_returns_401_for_membership_from_other_user(
     api_client: AsyncClient,
 ) -> None:
     organization = await _create_organization(api_client, "Atlas Docs", "atlas-docs")
@@ -433,14 +479,13 @@ async def test_post_request_documents_returns_403_for_membership_from_other_user
         f"/requests/{request_payload['id']}/documents",
         json={
             "original_filename": "forbidden.pdf",
-            "storage_key": "requests/forbidden.pdf",
             "content_type": "application/pdf",
             "size_bytes": 100,
         },
         headers=_membership_headers(actor_auth["access_token"], owner_membership["id"]),
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 401
     assert response.json()["detail"] == "Membership context is invalid."
 
 
@@ -495,7 +540,6 @@ async def test_patch_document_verified_data_updates_document_and_creates_activit
         f"/requests/{request_payload['id']}/documents",
         json={
             "original_filename": "rfq.pdf",
-            "storage_key": f"requests/{uuid4()}.pdf",
             "content_type": "application/pdf",
             "size_bytes": 1234,
         },
@@ -585,7 +629,6 @@ async def test_patch_document_verified_data_returns_not_found_for_foreign_tenant
         f"/requests/{request_payload['id']}/documents",
         json={
             "original_filename": "tenant-protected.pdf",
-            "storage_key": f"requests/{uuid4()}.pdf",
             "content_type": "application/pdf",
             "size_bytes": 200,
         },
@@ -600,3 +643,61 @@ async def test_patch_document_verified_data_returns_not_found_for_foreign_tenant
     )
 
     assert response.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_post_request_documents_rejects_client_controlled_storage_key(
+    api_client: AsyncClient,
+) -> None:
+    organization = await _create_organization(api_client, "Path Guard", "path-guard")
+    user = await _create_user(api_client, "path-guard@example.com", "Path Guard")
+    membership = await _create_membership(api_client, organization["id"], user["id"])
+    auth_payload = await _login(api_client, "path-guard@example.com")
+    request_payload = await _create_request(
+        api_client,
+        membership["id"],
+        auth_payload["access_token"],
+    )
+
+    response = await api_client.post(
+        f"/requests/{request_payload['id']}/documents",
+        json={
+            "original_filename": "rfq.pdf",
+            "storage_key": "../../etc/passwd",
+            "content_type": "application/pdf",
+            "size_bytes": 1024,
+        },
+        headers=_membership_headers(auth_payload["access_token"], membership["id"]),
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.anyio
+async def test_post_request_documents_upload_sanitizes_malicious_filename(
+    api_client: AsyncClient,
+    local_document_storage: LocalDocumentStorage,
+) -> None:
+    organization = await _create_organization(api_client, "Filename Guard", "filename-guard")
+    user = await _create_user(api_client, "filename-guard@example.com", "Filename Guard")
+    membership = await _create_membership(api_client, organization["id"], user["id"])
+    auth_payload = await _login(api_client, "filename-guard@example.com")
+    request_payload = await _create_request(
+        api_client,
+        membership["id"],
+        auth_payload["access_token"],
+    )
+
+    response = await api_client.post(
+        f"/requests/{request_payload['id']}/documents/upload",
+        files={"file": ("../../etc/passwd", b"safe-content", "text/plain")},
+        headers=_membership_headers(auth_payload["access_token"], membership["id"]),
+    )
+
+    payload = response.json()
+    stored_path = local_document_storage.base_path / payload["storage_key"]
+
+    assert response.status_code == 201
+    _assert_generated_storage_key(payload["storage_key"])
+    assert stored_path.exists()
+    assert stored_path.read_bytes() == b"safe-content"

@@ -1,4 +1,5 @@
-export type MembershipRole = "OWNER" | "ADMIN" | "MEMBER";
+export type MembershipRole = "OWNER" | "ADMIN" | "MANAGER" | "MEMBER" | "VIEWER";
+export type MembershipStatus = "ACTIVE" | "DISABLED";
 
 export type RequestStatus =
   | "NEW"
@@ -29,11 +30,31 @@ export interface AccessTokenResponse {
   token_type: "bearer";
 }
 
+export interface LoginResponse {
+  user: AuthenticatedUser;
+  access_token?: string;
+  token_type?: "bearer";
+}
+
+export interface ActiveOrganization {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export interface ActiveMembershipSummary {
+  id: string;
+  role: MembershipRole;
+  status: MembershipStatus;
+}
+
 export interface AuthenticatedUser {
   id: string;
   email: string;
   full_name: string;
   is_active: boolean;
+  active_organization: ActiveOrganization | null;
+  active_membership: ActiveMembershipSummary | null;
   created_at: string;
   updated_at: string;
 }
@@ -42,10 +63,13 @@ export interface MembershipOption {
   id: string;
   organization_id: string;
   organization_name: string;
+  organization_slug: string;
   role: MembershipRole;
-  is_active: boolean;
+  status: MembershipStatus;
+  joined_at: string;
   created_at: string;
   updated_at: string;
+  is_active: boolean;
 }
 
 export interface OrganizationMembershipOption {
@@ -55,9 +79,25 @@ export interface OrganizationMembershipOption {
   user_full_name: string;
   user_email: string;
   role: MembershipRole;
-  is_active: boolean;
+  status: MembershipStatus;
+  joined_at: string;
   created_at: string;
   updated_at: string;
+  is_active: boolean;
+}
+
+export interface OrganizationMemberRecord {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  user_full_name: string;
+  user_email: string;
+  role: MembershipRole;
+  status: MembershipStatus;
+  joined_at: string;
+  created_at: string;
+  updated_at: string;
+  is_active: boolean;
 }
 
 export interface RequestRecord {
@@ -69,6 +109,9 @@ export interface RequestRecord {
   source: RequestSource;
   created_by_membership_id: string;
   assigned_membership_id: string | null;
+  documents_count?: number;
+  comments_count?: number;
+  available_status_transitions?: RequestStatus[];
   created_at: string;
   updated_at: string;
 }
@@ -137,6 +180,21 @@ export interface HealthStatus {
   environment: string;
 }
 
+export interface PipelineBottleneck {
+  status: RequestStatus;
+  avg_days: number;
+}
+
+export interface PipelineAnalytics {
+  total_requests: number;
+  conversion_rate: number;
+  loss_rate: number;
+  requests_by_status: Record<RequestStatus, number>;
+  avg_time_per_stage: Record<RequestStatus, number>;
+  pipeline_velocity_days: number;
+  bottlenecks: PipelineBottleneck[];
+}
+
 export interface LoginPayload {
   email: string;
   password: string;
@@ -154,6 +212,14 @@ export interface TransitionRequestStatusPayload {
 
 export interface AssignRequestPayload {
   assigned_membership_id: string;
+}
+
+export interface UpdateOrganizationMemberRolePayload {
+  role: MembershipRole;
+}
+
+export interface UpdateOrganizationMemberStatusPayload {
+  status: MembershipStatus;
 }
 
 export interface RequestListFilters {

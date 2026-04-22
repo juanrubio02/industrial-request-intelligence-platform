@@ -10,121 +10,135 @@ import {
   type ReactNode,
 } from "react";
 
-import { getCurrentUser, login as loginRequest } from "@/lib/api/auth";
-import { ApiError } from "@/lib/api/client";
-import type { AuthenticatedUser } from "@/lib/api/types";
 import {
-  clearStoredAuthState,
-  getStoredSession,
-  setStoredSession,
-} from "@/lib/session-storage";
+  getCurrentUser,
+  login as loginRequest,
+  logout as logoutRequest,
+} from "@/lib/api/auth";
+import type {
+  ActiveMembershipSummary,
+  ActiveOrganization,
+  AuthenticatedUser,
+  MembershipRole,
+} from "@/lib/api/types";
+import { clearStoredAuthState } from "@/lib/session-storage";
 
 interface AuthContextValue {
-  accessToken: string | null;
   user: AuthenticatedUser | null;
+  activeOrganization: ActiveOrganization | null;
+  activeMembership: ActiveMembershipSummary | null;
+  role: MembershipRole | null;
   isBootstrapping: boolean;
+  isLoading: boolean;
   isAuthenticated: boolean;
+  canManageMembers: boolean;
+  canEditRequests: boolean;
+  canAssignRequests: boolean;
+  isViewer: boolean;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
-  refreshUser: () => Promise<void>;
+  logout: () => Promise<void>;
+  refreshMe: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
+  const activeOrganization = user?.active_organization ?? null;
+  const activeMembership = user?.active_membership ?? null;
+  const role = activeMembership?.role ?? null;
 
-  const logout = useCallback(() => {
+  const clearAuthState = useCallback(() => {
     clearStoredAuthState();
-    setAccessToken(null);
     setUser(null);
   }, []);
 
-  const refreshUser = useCallback(async () => {
+  const refreshMe = useCallback(async () => {
     const currentUser = await getCurrentUser();
-    if (!currentUser || !accessToken) {
-      logout();
+    if (!currentUser) {
+      clearAuthState();
       return;
     }
 
     setUser(currentUser);
-    setStoredSession({ accessToken, user: currentUser });
-  }, [accessToken, logout]);
+  }, [clearAuthState]);
 
   const bootstrap = useCallback(async () => {
-    const storedSession = getStoredSession();
-    if (!storedSession?.accessToken) {
-      setIsBootstrapping(false);
-      return;
-    }
-
-    setAccessToken(storedSession.accessToken);
-    setUser(storedSession.user);
-
     try {
       const currentUser = await getCurrentUser();
       if (!currentUser) {
-        logout();
+        clearAuthState();
       } else {
         setUser(currentUser);
-        setStoredSession({
-          accessToken: storedSession.accessToken,
-          user: currentUser,
-        });
       }
     } catch {
-      logout();
+      clearAuthState();
     } finally {
       setIsBootstrapping(false);
     }
-  }, [logout]);
+  }, [clearAuthState]);
 
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
 
   useEffect(() => {
-    const onUnauthorized = () => logout();
+    const onUnauthorized = () => clearAuthState();
     window.addEventListener("iri:unauthorized", onUnauthorized);
     return () => window.removeEventListener("iri:unauthorized", onUnauthorized);
-  }, [logout]);
+  }, [clearAuthState]);
 
   const login = useCallback(async (email: string, password: string) => {
     const session = await loginRequest({ email, password });
-    if (!session?.access_token) {
-      throw new ApiError(500, "Login did not return an access token.");
+    if (!session?.user) {
+      clearAuthState();
+      throw new Error("Login did not return an authenticated user.");
     }
 
+    setUser(session.user);
+  }, [clearAuthState]);
+
+  const logout = useCallback(async () => {
     try {
-      setAccessToken(session.access_token);
-      setStoredSession({ accessToken: session.access_token, user: null });
-
-      const currentUser = await getCurrentUser();
-      if (!currentUser) {
-        throw new ApiError(500, "Authenticated user could not be loaded.");
-      }
-
-      setUser(currentUser);
-      setStoredSession({ accessToken: session.access_token, user: currentUser });
-    } catch (error) {
-      logout();
-      throw error;
+      await logoutRequest();
+    } finally {
+      clearAuthState();
     }
-  }, [logout]);
+  }, [clearAuthState]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      accessToken,
       user,
+      activeOrganization,
+      activeMembership,
+      role,
       isBootstrapping,
-      isAuthenticated: Boolean(accessToken && user),
+      isLoading: isBootstrapping,
+      isAuthenticated: Boolean(user),
+      canManageMembers: role === "OWNER" || role === "ADMIN",
+      canEditRequests:
+        role === "OWNER" ||
+        role === "ADMIN" ||
+        role === "MANAGER" ||
+        role === "MEMBER",
+      canAssignRequests:
+        role === "OWNER" || role === "ADMIN" || role === "MANAGER",
+      isViewer: role === "VIEWER",
       login,
       logout,
-      refreshUser,
+      refreshMe,
     }),
-    [accessToken, user, isBootstrapping, login, logout, refreshUser],
+    [
+      user,
+      activeOrganization,
+      activeMembership,
+      role,
+      isBootstrapping,
+      login,
+      logout,
+      refreshMe,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

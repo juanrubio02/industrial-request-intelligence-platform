@@ -2,16 +2,11 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { useRequestsQuery } from "@/features/requests/api";
-import { getHealthStatus } from "@/lib/api/system";
+import { getPipelineAnalytics } from "@/lib/api/analytics";
 
-export function useDashboardHealthQuery() {
+export function usePipelineAnalyticsQuery() {
   return useQuery({
-    queryKey: ["system", "health"],
-    queryFn: async () => getHealthStatus(),
+    queryKey: ["analytics", "pipeline"],
+    queryFn: async () => getPipelineAnalytics(),
   });
-}
-
-export function useDashboardRequests() {
-  return useRequestsQuery();
 }

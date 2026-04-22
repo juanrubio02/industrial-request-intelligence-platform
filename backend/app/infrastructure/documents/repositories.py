@@ -1,8 +1,9 @@
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -53,15 +54,62 @@ class SqlAlchemyDocumentRepository(DocumentRepository):
 
         return self._to_domain(model)
 
-    async def list_by_request_id(self, request_id: UUID) -> list[Document]:
+    async def list_by_request_id(
+        self,
+        request_id: UUID,
+        *,
+        organization_id: UUID,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[Document]:
         statement = (
             select(DocumentModel)
-            .where(DocumentModel.request_id == request_id)
+            .where(
+                DocumentModel.request_id == request_id,
+                DocumentModel.organization_id == organization_id,
+            )
             .order_by(DocumentModel.created_at.asc(), DocumentModel.id.asc())
         )
+        if offset:
+            statement = statement.offset(offset)
+        if limit is not None:
+            statement = statement.limit(limit)
         result = await self._session.execute(statement)
         models = result.scalars().all()
         return [self._to_domain(model) for model in models]
+
+    async def count_by_request_id(
+        self,
+        request_id: UUID,
+        *,
+        organization_id: UUID,
+    ) -> int:
+        statement = select(func.count(DocumentModel.id)).where(
+            DocumentModel.request_id == request_id,
+            DocumentModel.organization_id == organization_id,
+        )
+        result = await self._session.execute(statement)
+        return int(result.scalar() or 0)
+
+    async def count_by_request_ids(
+        self,
+        request_ids: Sequence[UUID],
+        *,
+        organization_id: UUID,
+    ) -> dict[UUID, int]:
+        if not request_ids:
+            return {}
+
+        statement = (
+            select(DocumentModel.request_id, func.count(DocumentModel.id))
+            .where(
+                DocumentModel.organization_id == organization_id,
+                DocumentModel.request_id.in_(request_ids),
+            )
+            .group_by(DocumentModel.request_id)
+        )
+        result = await self._session.execute(statement)
+        return {request_id: count for request_id, count in result.all()}
 
     async def update_processing_status(
         self,

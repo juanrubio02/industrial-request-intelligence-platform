@@ -32,7 +32,7 @@ const MembershipContext = createContext<MembershipContextValue | null>(null);
 
 export function MembershipProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const { isAuthenticated, user } = useAuthContext();
+  const { isAuthenticated, refreshMe, user } = useAuthContext();
   const [activeMembershipId, setActiveMembershipIdState] = useState<string | null>(null);
 
   const membershipsQuery = useQuery({
@@ -56,14 +56,15 @@ export function MembershipProvider({ children }: { children: ReactNode }) {
     }
 
     const storedMembershipId = getStoredActiveMembershipId();
+    const sessionMembershipId = user?.active_membership?.id ?? null;
     const matchingMembership = memberships.find(
-      (membership) => membership.id === storedMembershipId,
+      (membership) => membership.id === storedMembershipId || membership.id === sessionMembershipId,
     );
     const fallbackMembership = matchingMembership ?? memberships[0];
 
     setActiveMembershipIdState(fallbackMembership.id);
     setStoredActiveMembershipId(fallbackMembership.id);
-  }, [isAuthenticated, membershipsQuery.data, queryClient]);
+  }, [isAuthenticated, membershipsQuery.data, queryClient, user?.active_membership?.id]);
 
   const setActiveMembershipId = useCallback(
     (membershipId: string) => {
@@ -76,6 +77,14 @@ export function MembershipProvider({ children }: { children: ReactNode }) {
     },
     [queryClient],
   );
+
+  useEffect(() => {
+    if (!isAuthenticated || !activeMembershipId) {
+      return;
+    }
+
+    void refreshMe();
+  }, [activeMembershipId, isAuthenticated, refreshMe]);
 
   const activeMembership =
     membershipsQuery.data?.find((membership) => membership.id === activeMembershipId) ?? null;

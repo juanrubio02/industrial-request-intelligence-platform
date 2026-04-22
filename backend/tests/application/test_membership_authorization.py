@@ -9,6 +9,7 @@ from app.application.auth.authorization import (
 from app.application.auth.exceptions import MembershipPermissionDeniedError
 from app.application.auth.schemas import AuthenticatedMembershipReadModel
 from app.domain.organization_memberships.roles import OrganizationMembershipRole
+from app.domain.organization_memberships.statuses import OrganizationMembershipStatus
 
 
 def _membership(role: OrganizationMembershipRole) -> AuthenticatedMembershipReadModel:
@@ -18,7 +19,8 @@ def _membership(role: OrganizationMembershipRole) -> AuthenticatedMembershipRead
         organization_id=uuid4(),
         user_id=uuid4(),
         role=role,
-        is_active=True,
+        status=OrganizationMembershipStatus.ACTIVE,
+        joined_at=now,
         created_at=now,
         updated_at=now,
     )
@@ -33,11 +35,20 @@ def test_membership_authorization_service_allows_member_to_create_request() -> N
     )
 
 
-def test_membership_authorization_service_rejects_member_for_status_transition() -> None:
+def test_membership_authorization_service_allows_member_for_status_transition() -> None:
+    service = MembershipAuthorizationService()
+
+    service.authorize(
+        membership=_membership(OrganizationMembershipRole.MEMBER),
+        permission=MembershipPermission.TRANSITION_REQUEST_STATUS,
+    )
+
+
+def test_membership_authorization_service_rejects_member_for_member_management() -> None:
     service = MembershipAuthorizationService()
 
     with pytest.raises(MembershipPermissionDeniedError):
         service.authorize(
             membership=_membership(OrganizationMembershipRole.MEMBER),
-            permission=MembershipPermission.TRANSITION_REQUEST_STATUS,
+            permission=MembershipPermission.MANAGE_MEMBERS,
         )

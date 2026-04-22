@@ -1,3 +1,5 @@
+import json
+import logging
 from io import BytesIO
 from uuid import UUID
 
@@ -11,31 +13,63 @@ from app.application.document_processing_results.services import (
     GetDocumentProcessingResultByDocumentIdUseCase,
 )
 from app.application.documents.processing import DocumentProcessingDispatcher
+from app.application.documents.processing import DocumentProcessingOutput
+from app.application.documents.processing import DocumentProcessor
 from app.application.documents.services import ProcessDocumentUseCase
+from app.domain.document_processing_jobs.statuses import DocumentProcessingJobStatus
 from app.domain.document_processing_results.document_types import (
     DocumentDetectedType,
 )
 from app.domain.documents.statuses import DocumentProcessingStatus
 from app.domain.requests.sources import RequestSource
 from app.infrastructure.document_processing.ocr import PdfOcrExtractor
+from app.infrastructure.document_processing.dispatcher import (
+    DatabaseDocumentProcessingDispatcher,
+)
 from app.infrastructure.document_processing.processor import StorageBackedDocumentProcessor
+from app.infrastructure.document_processing_jobs.repositories import (
+    SqlAlchemyDocumentProcessingJobRepository,
+)
 from app.infrastructure.document_processing_results.repositories import (
     SqlAlchemyDocumentProcessingResultRepository,
 )
 from app.infrastructure.documents.repositories import SqlAlchemyDocumentRepository
+from app.infrastructure.document_processing.worker import DocumentProcessingWorker
+from app.interfaces.http.logging import bind_log_context
+from app.interfaces.http.logging import get_logger
+from app.interfaces.http.logging import reset_log_context
 
 
 class RecordingDocumentProcessingDispatcher(DocumentProcessingDispatcher):
     def __init__(self) -> None:
-        self.enqueued_document_ids: list[UUID] = []
+        self.enqueued_jobs: list[tuple[UUID, UUID]] = []
 
-    async def enqueue(self, document_id: UUID) -> None:
-        self.enqueued_document_ids.append(document_id)
+    async def enqueue(self, document_id: UUID, organization_id: UUID) -> None:
+        self.enqueued_jobs.append((document_id, organization_id))
 
 
 class FailingPdfOcrExtractor(PdfOcrExtractor):
     def extract_text(self, file_bytes: bytes) -> str:
         raise RuntimeError("OCR processing failed for the PDF.")
+
+
+class NoOpDocumentProcessor(DocumentProcessor):
+    async def process(self, document) -> DocumentProcessingOutput:
+        return DocumentProcessingOutput()
+
+
+class FailingDocumentProcessor(DocumentProcessor):
+    async def process(self, document) -> DocumentProcessingOutput:
+        raise RuntimeError("Document processing failed.")
+
+
+class RecordingLogHandler(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__()
+        self.messages: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.messages.append(record.getMessage())
 
 
 async def _create_organization(api_client: AsyncClient, name: str, slug: str) -> dict:
@@ -843,8 +877,8 @@ async def test_post_document_processing_jobs_enqueues_document(
     assert response.status_code == 202
     assert response.json()["document_id"] == document_payload["id"]
     assert response.json()["processing_status"] == DocumentProcessingStatus.PENDING.value
-    assert recording_document_processing_dispatcher.enqueued_document_ids == [
-        UUID(document_payload["id"])
+    assert recording_document_processing_dispatcher.enqueued_jobs == [
+        (UUID(document_payload["id"]), UUID(organization["id"]))
     ]
 
 
@@ -881,8 +915,8 @@ async def test_post_document_processing_jobs_allows_owner_role(
 
     assert response.status_code == 202
     assert response.json()["document_id"] == document_payload["id"]
-    assert recording_document_processing_dispatcher.enqueued_document_ids == [
-        UUID(document_payload["id"])
+    assert recording_document_processing_dispatcher.enqueued_jobs == [
+        (UUID(document_payload["id"]), UUID(organization["id"]))
     ]
 
 
@@ -922,7 +956,7 @@ async def test_post_document_processing_jobs_returns_403_for_member_role(
         response.json()["detail"]
         == "Membership role 'MEMBER' is not allowed to perform 'ENQUEUE_DOCUMENT_PROCESSING'."
     )
-    assert recording_document_processing_dispatcher.enqueued_document_ids == []
+    assert recording_document_processing_dispatcher.enqueued_jobs == []
 
 
 @pytest.mark.anyio
@@ -949,5 +983,222 @@ async def test_post_document_processing_jobs_returns_401_without_authentication(
     response = await api_client.post(f"/documents/{document_payload['id']}/processing-jobs")
 
     assert response.status_code == 401
-    assert response.json()["detail"] == "Invalid or expired access token."
-    assert recording_document_processing_dispatcher.enqueued_document_ids == []
+    assert response.json()["detail"] == "A valid membership context is required."
+    assert recording_document_processing_dispatcher.enqueued_jobs == []
+
+
+@pytest.mark.anyio
+async def test_document_processing_dispatcher_creates_durable_job_and_logs_context(
+    api_client: AsyncClient,
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    organization = await _create_organization(
+        api_client,
+        "Dispatcher Durable Org",
+        "dispatcher-durable-org",
+    )
+    user = await _create_user(api_client, "dispatcher-durable@example.com", "Dispatcher Durable")
+    membership = await _create_membership(api_client, organization["id"], user["id"])
+    auth_payload = await _login(api_client, "dispatcher-durable@example.com")
+    request_payload = await _create_request(
+        api_client,
+        membership["id"],
+        auth_payload["access_token"],
+    )
+    document_payload = await _create_document(
+        api_client,
+        request_payload["id"],
+        membership["id"],
+        auth_payload["access_token"],
+    )
+
+    logger = get_logger()
+    handler = RecordingLogHandler()
+    logger.addHandler(handler)
+    document_id = UUID(document_payload["id"])
+    organization_id = UUID(organization["id"])
+    tokens = bind_log_context(
+        request_id="request-123",
+        user_id=user["id"],
+        membership_id=membership["id"],
+        organization_id=organization["id"],
+        path=f"/api/v1/documents/{document_payload['id']}/processing-jobs",
+        method="POST",
+    )
+
+    try:
+        async with session_factory() as session:
+            job_repository = SqlAlchemyDocumentProcessingJobRepository(session=session)
+            dispatcher = DatabaseDocumentProcessingDispatcher(job_repository=job_repository)
+            await dispatcher.enqueue(document_id, organization_id)
+            await job_repository.save_changes()
+            job = await job_repository.get_active_by_document_id(document_id)
+    finally:
+        reset_log_context(tokens)
+        logger.removeHandler(handler)
+
+    assert job is not None
+    assert job.document_id == document_id
+    assert job.organization_id == organization_id
+    assert job.status == DocumentProcessingJobStatus.PENDING
+
+    events = [json.loads(message) for message in handler.messages]
+    enqueue_event = next(
+        event
+        for event in events
+        if event.get("event") == "document_processing_job_enqueued"
+    )
+    assert enqueue_event["request_id"] == "request-123"
+    assert enqueue_event["job_id"] == str(job.id)
+    assert enqueue_event["status_code"] == 202
+
+
+@pytest.mark.anyio
+async def test_document_processing_worker_logs_started_and_failed_events(
+    api_client: AsyncClient,
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    organization = await _create_organization(api_client, "Worker Logs Org", "worker-logs-org")
+    user = await _create_user(api_client, "worker-logs@example.com", "Worker Logs")
+    membership = await _create_membership(api_client, organization["id"], user["id"])
+    auth_payload = await _login(api_client, "worker-logs@example.com")
+    request_payload = await _create_request(
+        api_client,
+        membership["id"],
+        auth_payload["access_token"],
+    )
+    document_payload = await _create_document(
+        api_client,
+        request_payload["id"],
+        membership["id"],
+        auth_payload["access_token"],
+    )
+
+    async with session_factory() as session:
+        job_repository = SqlAlchemyDocumentProcessingJobRepository(session=session)
+        job = await job_repository.create_job(
+            document_id=UUID(document_payload["id"]),
+            organization_id=UUID(organization["id"]),
+        )
+        await job_repository.save_changes()
+
+    logger = get_logger()
+    handler = RecordingLogHandler()
+    logger.addHandler(handler)
+    tokens = bind_log_context(request_id="worker-request-123")
+    try:
+        worker = DocumentProcessingWorker(
+            session_factory=session_factory,
+            document_processor=FailingDocumentProcessor(),
+        )
+        claimed_job = await worker.process_next_job()
+    finally:
+        reset_log_context(tokens)
+        logger.removeHandler(handler)
+
+    assert claimed_job is not None
+    assert claimed_job.id == job.id
+
+    async with session_factory() as session:
+        job_repository = SqlAlchemyDocumentProcessingJobRepository(session=session)
+        stored_job = await job_repository.get_by_id(job.id)
+
+    assert stored_job is not None
+    assert stored_job.status == DocumentProcessingJobStatus.FAILED
+
+    events = [json.loads(message) for message in handler.messages]
+    started_event = next(
+        event for event in events if event.get("event") == "document_processing_started"
+    )
+    failed_event = next(
+        event for event in events if event.get("event") == "document_processing_failed"
+    )
+    assert started_event["request_id"] == "worker-request-123"
+    assert started_event["job_id"] == str(job.id)
+    assert started_event["organization_id"] == organization["id"]
+    assert started_event["membership_id"] == membership["id"]
+    assert started_event["user_id"] == user["id"]
+    assert started_event["status_code"] == 202
+    assert failed_event["request_id"] == "worker-request-123"
+    assert failed_event["job_id"] == str(job.id)
+    assert failed_event["status_code"] == 500
+    assert failed_event["error_type"] == "DocumentProcessingFailed"
+
+
+@pytest.mark.anyio
+async def test_document_processing_worker_logs_started_and_completed_events(
+    api_client: AsyncClient,
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    organization = await _create_organization(
+        api_client, "Worker Completion Org", "worker-completion-org"
+    )
+    user = await _create_user(api_client, "worker-completion@example.com", "Worker Completion")
+    membership = await _create_membership(api_client, organization["id"], user["id"])
+    auth_payload = await _login(api_client, "worker-completion@example.com")
+    request_payload = await _create_request(
+        api_client,
+        membership["id"],
+        auth_payload["access_token"],
+    )
+    document_payload = await _create_document(
+        api_client,
+        request_payload["id"],
+        membership["id"],
+        auth_payload["access_token"],
+    )
+
+    async with session_factory() as session:
+        job_repository = SqlAlchemyDocumentProcessingJobRepository(session=session)
+        job = await job_repository.create_job(
+            document_id=UUID(document_payload["id"]),
+            organization_id=UUID(organization["id"]),
+        )
+        await job_repository.save_changes()
+
+    logger = get_logger()
+    handler = RecordingLogHandler()
+    logger.addHandler(handler)
+    tokens = bind_log_context(request_id="worker-request-456")
+    try:
+        worker = DocumentProcessingWorker(
+            session_factory=session_factory,
+            document_processor=NoOpDocumentProcessor(),
+        )
+        claimed_job = await worker.process_next_job()
+    finally:
+        reset_log_context(tokens)
+        logger.removeHandler(handler)
+
+    assert claimed_job is not None
+    assert claimed_job.id == job.id
+
+    async with session_factory() as session:
+        job_repository = SqlAlchemyDocumentProcessingJobRepository(session=session)
+        stored_job = await job_repository.get_by_id(job.id)
+
+    assert stored_job is not None
+    assert stored_job.status == DocumentProcessingJobStatus.COMPLETED
+
+    events = [json.loads(message) for message in handler.messages]
+    started_event = next(
+        event for event in events if event.get("event") == "document_processing_started"
+    )
+    completed_event = next(
+        event for event in events if event.get("event") == "document_processing_completed"
+    )
+
+    assert started_event["request_id"] == "worker-request-456"
+    assert started_event["job_id"] == str(job.id)
+    assert started_event["organization_id"] == organization["id"]
+    assert started_event["membership_id"] == membership["id"]
+    assert started_event["user_id"] == user["id"]
+    assert started_event["status_code"] == 202
+
+    assert completed_event["request_id"] == "worker-request-456"
+    assert completed_event["job_id"] == str(job.id)
+    assert completed_event["organization_id"] == organization["id"]
+    assert completed_event["membership_id"] == membership["id"]
+    assert completed_event["user_id"] == user["id"]
+    assert completed_event["status_code"] == 200
+    assert completed_event["error_type"] is None

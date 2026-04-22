@@ -2,6 +2,7 @@ from uuid import UUID
 
 import fitz
 
+from app.application.common.pagination import PaginatedResult, PaginationParams
 from app.application.demo_intake.exceptions import DemoIntakeScenarioNotFoundError
 from app.application.demo_intake.schemas import (
     DemoIntakeRunResultReadModel,
@@ -25,8 +26,8 @@ from app.application.requests.services import CreateRequestUseCase
 
 
 class ListDemoIntakeScenariosUseCase:
-    def execute(self) -> list[DemoIntakeScenarioReadModel]:
-        return [
+    def execute(self, pagination: PaginationParams) -> PaginatedResult[DemoIntakeScenarioReadModel]:
+        scenarios = [
             DemoIntakeScenarioReadModel(
                 key=scenario.key,
                 title=scenario.title,
@@ -38,6 +39,13 @@ class ListDemoIntakeScenariosUseCase:
             )
             for scenario in load_demo_intake_scenarios().values()
         ]
+        items = scenarios[pagination.offset : pagination.offset + pagination.limit]
+        return PaginatedResult(
+            items=items,
+            total=len(scenarios),
+            limit=pagination.limit,
+            offset=pagination.offset,
+        )
 
 
 class RunDemoIntakeScenarioUseCase:
@@ -67,8 +75,8 @@ class RunDemoIntakeScenarioUseCase:
             )
 
         request = await self._create_request_use_case.execute(
+            organization_id,
             CreateRequestCommand(
-                organization_id=organization_id,
                 title=scenario.subject,
                 description=self._build_request_description(scenario),
                 source=scenario.source,

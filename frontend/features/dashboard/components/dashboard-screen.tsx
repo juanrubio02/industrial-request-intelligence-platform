@@ -1,25 +1,19 @@
 "use client";
 
-import Link from "next/link";
-import { Activity, ArrowRight, CheckCircle2, Layers3 } from "lucide-react";
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/empty-state";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
-import { StatCard } from "@/components/stat-card";
-import { useDashboardHealthQuery, useDashboardRequests } from "@/features/dashboard/api";
-import { RequestStatusBadge } from "@/features/requests/status-badges";
-import { interpolate, useI18n } from "@/i18n/hooks";
-import { formatDateTime } from "@/lib/utils";
+import { usePipelineAnalyticsQuery } from "@/features/dashboard/api";
+import { BottleneckAlert } from "@/features/dashboard/components/bottleneck-alert";
+import { PipelineFunnelChart } from "@/features/dashboard/components/pipeline-funnel-chart";
+import { PipelineMetricsCards } from "@/features/dashboard/components/pipeline-metrics-cards";
+import { StageDurationChart } from "@/features/dashboard/components/stage-duration-chart";
+import { useI18n } from "@/i18n/hooks";
 
 export function DashboardScreen() {
-  const requestsQuery = useDashboardRequests();
-  const healthQuery = useDashboardHealthQuery();
-  const { locale, messages } = useI18n();
-
-  const requests = requestsQuery.data ?? [];
-  const openRequests = requests.filter((request) => !["WON", "LOST"].includes(request.status));
-  const latestRequests = requests.slice(0, 5);
+  const analyticsQuery = usePipelineAnalyticsQuery();
+  const { messages } = useI18n();
 
   return (
     <div className="space-y-6">
@@ -29,133 +23,43 @@ export function DashboardScreen() {
         description={messages.dashboard.header.description}
       />
 
-      <section className="grid gap-4 xl:grid-cols-4">
-        <StatCard
-          label={messages.dashboard.stats.totalRequests}
-          value={String(requests.length)}
-          helper={messages.dashboard.stats.totalRequestsHelper}
-        />
-        <StatCard
-          label={messages.dashboard.stats.openPipeline}
-          value={String(openRequests.length)}
-          helper={messages.dashboard.stats.openPipelineHelper}
-        />
-        <StatCard
-          label={messages.dashboard.stats.systemHealth}
-          value={healthQuery.data?.status ?? messages.dashboard.stats.checking}
-          helper={
-            healthQuery.data
-              ? `${healthQuery.data.service} · ${healthQuery.data.environment}`
-              : messages.dashboard.stats.systemHealthHelperLoading
-          }
-        />
-        <StatCard
-          label={messages.dashboard.stats.recentSignals}
-          value={String(latestRequests.length)}
-          helper={messages.dashboard.stats.recentSignalsHelper}
-        />
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[1.35fr_0.95fr]">
+      {analyticsQuery.isLoading ? (
+        <div className="space-y-4">
+          <div className="grid gap-4 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} className="h-36 w-full" />
+            ))}
+          </div>
+          <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+            <Skeleton className="h-[26rem] w-full" />
+            <Skeleton className="h-[26rem] w-full" />
+          </div>
+          <Skeleton className="h-[26rem] w-full" />
+        </div>
+      ) : analyticsQuery.isError ? (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                {messages.dashboard.recentRequests.eyebrow}
-              </p>
-              <CardTitle className="mt-2">{messages.dashboard.recentRequests.title}</CardTitle>
-            </div>
-            <Link href="/requests" className="text-sm font-medium text-accent hover:underline">
-              {messages.dashboard.recentRequests.action}
-            </Link>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {requestsQuery.isLoading ? (
-              Array.from({ length: 4 }).map((_, index) => (
-                <Skeleton key={index} className="h-20 w-full" />
-              ))
-            ) : latestRequests.length ? (
-              latestRequests.map((request) => (
-                <Link
-                  key={request.id}
-                  href={`/requests/${request.id}`}
-                  className="flex items-center justify-between rounded-2xl border border-line bg-surface/70 px-4 py-4 transition hover:bg-surface"
-                >
-                  <div className="space-y-1">
-                    <p className="font-semibold">{request.title}</p>
-                    <p className="text-sm text-slate-500">
-                      {formatDateTime(request.updated_at, locale)}
-                    </p>
-                  </div>
-                  <RequestStatusBadge status={request.status} />
-                </Link>
-              ))
-            ) : (
-              <div className="rounded-2xl border border-dashed border-line px-6 py-8 text-sm text-slate-600">
-                {messages.dashboard.recentRequests.empty}
-              </div>
-            )}
+          <CardContent className="px-8 py-10 text-center text-sm text-slate-600">
+            {messages.dashboard.loadError}
           </CardContent>
         </Card>
-
+      ) : !analyticsQuery.data || analyticsQuery.data.total_requests === 0 ? (
+        <EmptyState
+          title={messages.dashboard.empty.title}
+          description={messages.dashboard.empty.description}
+          action={{ label: messages.dashboard.empty.action, href: "/requests/new" }}
+        />
+      ) : (
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                {messages.dashboard.systemState.eyebrow}
-              </p>
-              <CardTitle className="mt-2">{messages.dashboard.systemState.title}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-3 rounded-2xl bg-surface px-4 py-4">
-                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                <div>
-                  <p className="font-semibold">{messages.dashboard.systemState.apiAvailable}</p>
-                  <p className="text-sm text-slate-500">
-                    {interpolate(messages.dashboard.systemState.apiDescription, {
-                      status: healthQuery.data?.status ?? messages.dashboard.systemState.pending,
-                    })}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 rounded-2xl bg-surface px-4 py-4">
-                <Layers3 className="h-5 w-5 text-sky-600" />
-                <div>
-                  <p className="font-semibold">
-                    {messages.dashboard.systemState.intelligenceOnline}
-                  </p>
-                  <p className="text-sm text-slate-500">
-                    {messages.dashboard.systemState.intelligenceDescription}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <PipelineMetricsCards analytics={analyticsQuery.data} />
 
-          <Card>
-            <CardHeader>
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                {messages.dashboard.nextStep.eyebrow}
-              </p>
-              <CardTitle className="mt-2">{messages.dashboard.nextStep.title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Link
-                href="/requests/new"
-                className="flex items-center justify-between rounded-2xl border border-line bg-white px-4 py-4 transition hover:bg-surfaceMuted"
-              >
-                <div>
-                  <p className="font-semibold">{messages.dashboard.nextStep.actionTitle}</p>
-                  <p className="text-sm text-slate-500">
-                    {messages.dashboard.nextStep.actionDescription}
-                  </p>
-                </div>
-                <ArrowRight className="h-4 w-4 text-slate-500" />
-              </Link>
-            </CardContent>
-          </Card>
+          <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+            <PipelineFunnelChart analytics={analyticsQuery.data} />
+            <BottleneckAlert analytics={analyticsQuery.data} />
+          </section>
+
+          <StageDurationChart analytics={analyticsQuery.data} />
         </div>
-      </section>
+      )}
     </div>
   );
 }

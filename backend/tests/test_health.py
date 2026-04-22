@@ -10,11 +10,13 @@ async def test_healthcheck_endpoint_returns_ok_status() -> None:
     transport = ASGITransport(app=app)
 
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
-        response = await client.get("/health")
+        response = await client.get("/api/v1/health")
 
     assert response.status_code == 200
     assert response.json() == {
-        "status": "ok",
-        "service": "industrial-request-intelligence-platform",
-        "environment": "local",
+        "data": {
+            "status": "ok",
+            "service": "industrial-request-intelligence-platform",
+            "environment": "local",
+        }
     }

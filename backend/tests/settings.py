@@ -16,6 +16,10 @@ class TestSettings(BaseSettings):
         alias="TEST_DATABASE_URL",
     )
     auth_secret_key: str = Field(default="test-auth-secret", alias="AUTH_SECRET_KEY")
+    bootstrap_api_key: str = Field(
+        default="test-bootstrap-key",
+        alias="BOOTSTRAP_API_KEY",
+    )
 
 
 @lru_cache(maxsize=1)

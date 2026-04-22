@@ -29,5 +29,9 @@ class DocumentUploadInvalidFileError(ValidationError):
     """Raised when the uploaded file is invalid."""
 
 
+class DocumentStoragePathError(ValidationError):
+    """Raised when a storage path is invalid or escapes the base directory."""
+
+
 class InvalidDocumentProcessingStatusTransitionError(ResourceConflictError):
     """Raised when a document processing status transition is not allowed."""

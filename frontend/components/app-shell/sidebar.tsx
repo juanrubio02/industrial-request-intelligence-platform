@@ -2,20 +2,32 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Blocks, CirclePlus, FileStack, LayoutDashboard, WandSparkles } from "lucide-react";
+import { Blocks, CirclePlus, FileStack, LayoutDashboard, Users2, WandSparkles } from "lucide-react";
 
 import { APP_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/i18n/hooks";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const currentPath = pathname ?? "";
+  const { canManageMembers } = useAuth();
   const { messages } = useI18n();
   const navigation = [
     { href: "/dashboard", label: messages.shell.sidebar.navigation.dashboard, icon: LayoutDashboard },
     { href: "/requests", label: messages.shell.sidebar.navigation.requests, icon: FileStack },
     { href: "/requests/new", label: messages.shell.sidebar.navigation.newRequest, icon: CirclePlus },
     { href: "/demo-intake", label: messages.shell.sidebar.navigation.demoIntake, icon: WandSparkles },
+    ...(canManageMembers
+      ? [
+          {
+            href: "/settings/users",
+            label: messages.shell.sidebar.navigation.settingsUsers,
+            icon: Users2,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -35,7 +47,8 @@ export function Sidebar() {
       <nav className="space-y-1.5">
         {navigation.map((item) => {
           const Icon = item.icon;
-          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const active =
+            currentPath === item.href || currentPath.startsWith(`${item.href}/`);
 
           return (
             <Link

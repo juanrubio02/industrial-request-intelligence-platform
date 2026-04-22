@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy import select
@@ -36,8 +37,7 @@ class SqlAlchemyUserRepository(UserRepository):
                 ) from exc
             raise
 
-        await self._session.refresh(model)
-        return self._to_domain(model)
+        return user
 
     async def get_by_id(self, user_id: UUID) -> User | None:
         model = await self._session.get(UserModel, user_id)
@@ -54,6 +54,14 @@ class SqlAlchemyUserRepository(UserRepository):
             return None
 
         return self._to_domain(model)
+
+    async def list_by_ids(self, user_ids: Sequence[UUID]) -> list[User]:
+        if not user_ids:
+            return []
+
+        statement = select(UserModel).where(UserModel.id.in_(user_ids))
+        result = await self._session.execute(statement)
+        return [self._to_domain(model) for model in result.scalars().all()]
 
     @staticmethod
     def _to_domain(model: UserModel) -> User:

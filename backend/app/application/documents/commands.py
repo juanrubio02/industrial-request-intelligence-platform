@@ -10,7 +10,7 @@ class CreateDocumentCommand(BaseModel):
     organization_id: UUID
     uploaded_by_membership_id: UUID
     original_filename: str = Field(min_length=1, max_length=255)
-    storage_key: str = Field(min_length=1, max_length=512)
+    storage_key: str | None = Field(default=None, min_length=1, max_length=512)
     content_type: str = Field(min_length=1, max_length=255)
     size_bytes: int = Field(gt=0)
 

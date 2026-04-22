@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.settings import get_settings
 from app.interfaces.http.api.router import api_router
 from app.interfaces.http.errors import register_exception_handlers
+from app.interfaces.http.middleware import RequestContextMiddleware
 
 
 def create_app() -> FastAPI:
@@ -13,6 +14,7 @@ def create_app() -> FastAPI:
         title=settings.app_name,
         debug=settings.app_debug,
     )
+    application.add_middleware(RequestContextMiddleware)
     application.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_allowed_origins_list,

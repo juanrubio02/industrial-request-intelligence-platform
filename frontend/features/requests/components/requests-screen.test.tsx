@@ -34,6 +34,10 @@ vi.mock("@tanstack/react-query", async () => {
 
 vi.mock("@/features/requests/api", () => ({
   useRequestsQuery: (...args: unknown[]) => useRequestsQueryMock(...args),
+  useTransitionRequestStatusMutation: () => ({
+    isPending: false,
+    mutateAsync: vi.fn(),
+  }),
 }));
 
 vi.mock("@/hooks/use-membership", () => ({
@@ -41,6 +45,12 @@ vi.mock("@/hooks/use-membership", () => ({
     activeMembership: {
       organization_id: "org-1",
     },
+  }),
+}));
+
+vi.mock("@/hooks/use-toast", () => ({
+  useToast: () => ({
+    pushToast: vi.fn(),
   }),
 }));
 
@@ -88,5 +98,38 @@ describe("RequestsScreen", () => {
 
     expect(screen.getByText(/no hay resultados para los filtros aplicados/i)).toBeInTheDocument();
   });
-});
 
+  it("switches to pipeline view without changing the data source", () => {
+    useRequestsQueryMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: [
+        {
+          id: "req-1",
+          organization_id: "org-1",
+          title: "Need stainless pumps",
+          description: null,
+          status: "NEW",
+          source: "EMAIL",
+          created_by_membership_id: "mem-1",
+          assigned_membership_id: "mem-1",
+          documents_count: 1,
+          comments_count: 2,
+          available_status_transitions: ["UNDER_REVIEW"],
+          created_at: "2026-03-12T09:00:00Z",
+          updated_at: "2026-03-12T10:00:00Z",
+        },
+      ],
+    });
+
+    render(<RequestsScreen />);
+
+    fireEvent.click(screen.getByRole("button", { name: /vista pipeline/i }));
+
+    expect(screen.getByText(/pipeline visual/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Need stainless pumps" })).toHaveAttribute(
+      "href",
+      "/requests/req-1",
+    );
+  });
+});

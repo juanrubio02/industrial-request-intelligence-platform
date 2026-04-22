@@ -16,6 +16,7 @@ from app.application.users.exceptions import UserNotFoundError
 from app.domain.organization_memberships.entities import OrganizationMembership
 from app.domain.organization_memberships.repositories import OrganizationMembershipRepository
 from app.domain.organization_memberships.roles import OrganizationMembershipRole
+from app.domain.organization_memberships.statuses import OrganizationMembershipStatus
 from app.domain.organizations.entities import Organization
 from app.domain.organizations.repositories import OrganizationRepository
 from app.domain.users.entities import User
@@ -57,6 +58,13 @@ class InMemoryUserRepository(UserRepository):
                 return user
         return None
 
+    async def list_by_ids(self, user_ids):
+        return [
+            user
+            for user_id in user_ids
+            if (user := self._users.get(user_id)) is not None
+        ]
+
 
 class InMemoryOrganizationMembershipRepository(OrganizationMembershipRepository):
     def __init__(self, memberships: list[OrganizationMembership] | None = None) -> None:
@@ -85,19 +93,67 @@ class InMemoryOrganizationMembershipRepository(OrganizationMembershipRepository)
                 return membership
         return None
 
-    async def list_active_by_user_id(self, user_id):
-        return [
+    async def list_active_by_user_id(self, user_id, *, limit=None, offset=0):
+        memberships = [
             membership
             for membership in self._memberships.values()
             if membership.user_id == user_id and membership.is_active
         ]
+        end = None if limit is None else offset + limit
+        return memberships[offset:end]
 
-    async def list_active_by_organization_id(self, organization_id):
-        return [
+    async def count_active_by_user_id(self, user_id):
+        return sum(
+            1
+            for membership in self._memberships.values()
+            if membership.user_id == user_id and membership.is_active
+        )
+
+    async def list_active_by_organization_id(self, organization_id, *, limit=None, offset=0):
+        memberships = [
             membership
             for membership in self._memberships.values()
             if membership.organization_id == organization_id and membership.is_active
         ]
+        end = None if limit is None else offset + limit
+        return memberships[offset:end]
+
+    async def list_by_organization_id(self, organization_id, *, limit=None, offset=0):
+        memberships = [
+            membership
+            for membership in self._memberships.values()
+            if membership.organization_id == organization_id
+        ]
+        end = None if limit is None else offset + limit
+        return memberships[offset:end]
+
+    async def count_by_organization_id(self, organization_id):
+        return sum(
+            1
+            for membership in self._memberships.values()
+            if membership.organization_id == organization_id
+        )
+
+    async def list_by_ids_and_organization(self, membership_ids, organization_id):
+        return [
+            membership
+            for membership_id in membership_ids
+            if (membership := self._memberships.get(membership_id)) is not None
+            and membership.organization_id == organization_id
+        ]
+
+    async def save(self, membership: OrganizationMembership) -> OrganizationMembership:
+        self._memberships[membership.id] = membership
+        return membership
+
+    async def count_active_by_organization_and_role(self, organization_id, role):
+        return sum(
+            1
+            for membership in self._memberships.values()
+            if membership.organization_id == organization_id
+            and membership.role == role
+            and membership.is_active
+        )
 
 
 def _organization() -> Organization:
@@ -157,6 +213,8 @@ async def test_create_organization_membership_use_case_creates_active_membership
     assert result.user_id == user.id
     assert result.role == role
     assert result.is_active is True
+    assert result.status == OrganizationMembershipStatus.ACTIVE
+    assert result.joined_at is not None
 
 
 @pytest.mark.anyio
@@ -169,7 +227,8 @@ async def test_create_organization_membership_use_case_rejects_duplicate_active_
         organization_id=organization.id,
         user_id=user.id,
         role=OrganizationMembershipRole.MEMBER,
-        is_active=True,
+        status=OrganizationMembershipStatus.ACTIVE,
+        joined_at=now,
         created_at=now,
         updated_at=now,
     )

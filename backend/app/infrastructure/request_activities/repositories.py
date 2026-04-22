@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.request_activities.entities import RequestActivity
@@ -25,15 +25,42 @@ class SqlAlchemyRequestActivityRepository(RequestActivityRepository):
         self._session.add(model)
         return activity
 
-    async def list_by_request_id(self, request_id: UUID) -> list[RequestActivity]:
+    async def list_by_request_id(
+        self,
+        request_id: UUID,
+        *,
+        organization_id: UUID,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[RequestActivity]:
         statement = (
             select(RequestActivityModel)
-            .where(RequestActivityModel.request_id == request_id)
+            .where(
+                RequestActivityModel.request_id == request_id,
+                RequestActivityModel.organization_id == organization_id,
+            )
             .order_by(RequestActivityModel.created_at.asc(), RequestActivityModel.id.asc())
         )
+        if offset:
+            statement = statement.offset(offset)
+        if limit is not None:
+            statement = statement.limit(limit)
         result = await self._session.execute(statement)
         models = result.scalars().all()
         return [self._to_domain(model) for model in models]
+
+    async def count_by_request_id(
+        self,
+        request_id: UUID,
+        *,
+        organization_id: UUID,
+    ) -> int:
+        statement = select(func.count(RequestActivityModel.id)).where(
+            RequestActivityModel.request_id == request_id,
+            RequestActivityModel.organization_id == organization_id,
+        )
+        result = await self._session.execute(statement)
+        return int(result.scalar() or 0)
 
     @staticmethod
     def _to_domain(model: RequestActivityModel) -> RequestActivity:
@@ -46,4 +73,3 @@ class SqlAlchemyRequestActivityRepository(RequestActivityRepository):
             payload=model.payload,
             created_at=model.created_at,
         )
-

@@ -21,6 +21,14 @@ class RequestRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def get_by_id_and_organization(
+        self,
+        request_id: UUID,
+        organization_id: UUID,
+    ) -> Request | None:
+        raise NotImplementedError
+
+    @abstractmethod
     async def list_by_organization_id(self, organization_id: UUID) -> list[Request]:
         raise NotImplementedError
 
@@ -31,15 +39,36 @@ class RequestRepository(ABC):
         *,
         q: str | None = None,
         status: RequestStatus | None = None,
+        customer_id: UUID | None = None,
         assigned_membership_id: UUID | None = None,
         source: RequestSource | None = None,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> list[Request]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def count_by_organization_filters(
+        self,
+        organization_id: UUID,
+        *,
+        q: str | None = None,
+        status: RequestStatus | None = None,
+        customer_id: UUID | None = None,
+        assigned_membership_id: UUID | None = None,
+        source: RequestSource | None = None,
+    ) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update(self, request: Request) -> Request:
         raise NotImplementedError
 
     @abstractmethod
     async def update_status(
         self,
         request_id: UUID,
+        organization_id: UUID,
         new_status: RequestStatus,
         updated_at: datetime,
     ) -> Request:
