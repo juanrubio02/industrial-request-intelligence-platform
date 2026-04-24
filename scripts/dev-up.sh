@@ -147,9 +147,10 @@ write_frontend_env
 #######################################
 # Seed data
 #######################################
-
-echo "Seeding demo workspace..."
-$COMPOSE_CMD exec -T backend python scripts/seed_demo.py >/dev/null
+echo "Seeding demo workspace (non-blocking)..."
+if ! $COMPOSE_CMD exec -T backend python scripts/seed_demo.py >/dev/null 2>&1; then
+  echo "⚠️ Seed failed, but continuing (app is usable)"
+fi
 
 #######################################
 # Start frontend
