@@ -124,7 +124,7 @@ echo "Waiting for backend API to be ready..."
 
 ATTEMPTS=60
 for i in $(seq 1 $ATTEMPTS); do
-  if curl -fs "$BACKEND_URL/health" >/dev/null 2>&1; then
+  if curl -fs "$BACKEND_URL/api/v1/health" >/dev/null 2>&1; then
     echo "✅ Backend is ready"
     break
   fi
